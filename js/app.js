@@ -55,6 +55,16 @@ function mostrar(id) {
   if (id === "protocolos" && typeof actualizarListaProtocolos === "function") {
     actualizarListaProtocolos();
   }
+
+  if (id === "estator1" && typeof cargarEst1 === "function") {
+    cargarEst1(typeof modoEst1 !== "undefined" ? modoEst1 : "pre");
+  }
+  if (id === "estator2" && typeof cargarEst2 === "function") {
+    cargarEst2(typeof modoEst2 !== "undefined" ? modoEst2 : "pre");
+  }
+  if (id === "rotorDiel" && typeof cargarRotor === "function") {
+    cargarRotor(typeof modoRotor !== "undefined" ? modoRotor : "pre");
+  }
 }
 
 // Crear nuevo protocolo
@@ -145,18 +155,16 @@ function nuevoProtocolo() {
 
 // Generar número de protocolo automático
 function generarProtocolo() {
-
-  const anio = new Date().getFullYear();
-  const ultimo = localStorage.getItem("ultimoAYCA") || 0;
-  const nuevo = parseInt(ultimo) + 1;
-
-  localStorage.setItem("ultimoAYCA", nuevo);
+  const ahora = new Date();
+  const yy = String(ahora.getFullYear()).slice(2);
+  const mm = String(ahora.getMonth() + 1).padStart(2, "0");
+  const dd = String(ahora.getDate()).padStart(2, "0");
+  const hh = String(ahora.getHours()).padStart(2, "0");
+  const mi = String(ahora.getMinutes()).padStart(2, "0");
 
   const inputProtocolo = document.getElementById("protocolo");
-
   if (inputProtocolo) {
-    inputProtocolo.value =
-      "AYCA-" + anio + "-" + String(nuevo).padStart(4, "0");
+    inputProtocolo.value = "CD-" + yy + mm + dd + "-" + hh + mi;
   }
 }
 
@@ -171,14 +179,6 @@ function guardarAvance() {
     "datosPosicionesAYCA",
     JSON.stringify(datosPosiciones)
   );
-
-  const salirMotor = confirm("¿Estás saliendo del motor?");
-
-  if (salirMotor) {
-    alert("Debe tomar o adjuntar foto de las herramientas salientes.");
-    mostrar("salida");
-    return;
-  }
 
   alert("Avance guardado correctamente.");
 }

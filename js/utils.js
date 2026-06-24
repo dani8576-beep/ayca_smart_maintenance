@@ -2,10 +2,9 @@ function clonar(objeto) {
   return JSON.parse(JSON.stringify(objeto));
 }
 
-function limpiarEstadoPDF(valor) {
-  if (!valor) return "Sin registro";
-  if (valor.includes("OK")) return "OK";
-  if (valor.includes("FALLA")) return "FALLA";
-  if (valor.includes("N/A")) return "N/A";
-  return valor;
+function mostrarNombreFoto(input) {
+  const p = input.closest("label").nextElementSibling;
+  if (p && p.classList.contains("nombre-foto")) {
+    p.innerText = input.files.length > 0 ? input.files[0].name : "Ninguna foto seleccionada";
+  }
 }
