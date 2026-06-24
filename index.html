@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AYCA Smart Maintenance</title>
+  <link rel="stylesheet" href="css/styles.css">
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+</head>
+
+<body>
+<div class="app">
+
+<section id="login" class="pantalla activa">
+  <div class="logo">
+    <h1>⚙️ AYCA</h1>
+    <p>ACCIONAMIENTO Y CONTROL AUTOMÁTICO</p>
+  </div>
+
+  <div class="card">
+    <h2>AYCA Smart Maintenance</h2>
+    <label>Usuario</label>
+    <input id="usuario" value="Daniel">
+
+    <label>Contraseña</label>
+    <input type="password" value="1234">
+
+    <button onclick="mostrar('panel')">INICIAR SESIÓN</button>
+  </div>
+</section>
+
+<section id="panel" class="pantalla">
+  <div class="topbar">☰ AYCA Smart Maintenance</div>
+  <h2>Bienvenido, Técnico</h2>
+
+  <div class="grid">
+    <div class="modulo" onclick="mostrar('seleccionProtocolo')">📋<br><b>Nuevo Protocolo</b></div>
+    <div class="modulo" onclick="mostrar('protocolos')">📑<br><b>Protocolos</b></div>
+    <div class="modulo">🕘<br><b>Historial</b></div>
+    <div class="modulo">⚙️<br><b>Motores</b></div>
+    <div class="modulo" onclick="mostrar('herramientas')">🛠️<br><b>Herramientas</b></div>
+    <div class="modulo">🔄<br><b>Sincronización</b></div>
+  </div>
+</section>
+
+<section id="seleccionProtocolo" class="pantalla">
+  <div class="topbar">Nuevo Protocolo</div>
+
+  <div class="card">
+    <h2>Seleccione tipo de protocolo</h2>
+
+    <div class="grid">
+      <div class="modulo" onclick="nuevoProtocolo()">📐<br><b>Control Dimensional</b></div>
+      <div class="modulo" onclick="mostrar('dielectrico')">⚡<br><b>Mediciones Dieléctricas</b></div>
+    </div>
+
+    <br>
+    <button class="btn-gris" onclick="mostrar('panel')">⬅️ Volver</button>
+  </div>
+</section>
+
+<section id="dielectrico" class="pantalla">
+  <div class="topbar">Mediciones Dieléctricas</div>
+
+  <div class="card">
+    <h2>⚡ Datos Generales de la Prueba</h2>
+
+    <label>Cliente</label>
+    <select id="clienteDiel">
+      <option>CODELCO</option>
+      <option>MLCC</option>
+      <option>SIERRA GORDA</option>
+      <option>CANDELARIA</option>
+      <option>ANGLO AMERICAN</option>
+      <option>KINROSS</option>
+      <option>LUMBRERA</option>
+    </select>
+
+    <label>Equipo a probar</label>
+    <input type="text" id="equipoDiel" placeholder="Ej: Motor SAG, Motor Bolas, Motor bomba...">
+
+    <label>Voltaje de prueba (V)</label>
+    <input type="number" id="voltajePrueba" value="1000">
+
+    <label>Temperatura del equipo (°C)</label>
+    <input type="number" id="temperaturaEquipo" value="40">
+
+    <div class="nav">
+      <button class="btn-gris" onclick="mostrar('seleccionProtocolo')">⬅️ Volver</button>
+      <button class="btn-verde" onclick="mostrar('estator1')">Siguiente ➜</button>
+    </div>
+  </div>
+</section>
+
+<section id="estator1" class="pantalla">
+  <div class="topbar">Estator 1</div>
+
+  <div class="card">
+    <h2>⚡ Medición de Aislación - Estator 1</h2>
+
+    <label>Resistencia de aislación (MΩ)</label>
+    <input type="number" id="est1_resistencia">
+
+    <label>Corriente de fuga (mA)</label>
+    <input type="number" id="est1_corriente">
+
+    <label>Capacitancia (µF)</label>
+    <input type="number" id="est1_capacitancia">
+
+    <label>Índice de Polarización (IP)</label>
+    <input type="number" id="est1_ip" step="0.01">
+
+    <label>Observaciones</label>
+    <textarea id="est1_obs" rows="4"></textarea>
+
+    <div class="nav">
+      <button class="btn-gris" onclick="mostrar('dielectrico')">⬅️ Anterior</button>
+      <button class="btn-verde" onclick="alert('Próximo paso: Estator 2')">Siguiente ➜</button>
+    </div>
+  </div>
+</section>
+ 
+<section id="protocolos" class="pantalla">
+  <div class="topbar">Historial de Protocolos</div>
+
+  <div class="card">
+    <h2>Protocolos guardados</h2>
+    <input id="buscarProtocolo" type="text" placeholder="Buscar por número, cliente o fecha..." onkeyup="actualizarListaProtocolos()">
+    <div id="listaProtocolos"></div>
+    <button class="btn-gris" onclick="mostrar('panel')">⬅️ Volver</button>
+  </div>
+</section>
+
+<section id="datos" class="pantalla">
+  <div class="topbar">Datos Generales</div>
+
+  <div class="card">
+    <label>N° Protocolo</label>
+    <input id="protocolo" readonly>
+
+    <label>Fecha</label>
+    <input id="fecha" type="date">
+
+    <label>Cliente</label>
+    <select id="cliente">
+      <option>CODELCO</option>
+      <option>MLCC</option>
+      <option>SIERRA GORDA</option>
+      <option>CANDELARIA</option>
+      <option>ANGLO AMERICAN</option>
+      <option>KINROSS</option>
+      <option>LUMBRERA</option>
+    </select>
+
+    <label>Faena</label>
+    <select id="faena">
+      <option>Andina</option>
+      <option>El Teniente</option>
+      <option>El Salvador</option>
+      <option>Chuquicamata</option>
+      <option>Ministro Hales</option>
+      <option>Sierra Gorda</option>
+      <option>Caserones</option>
+      <option>Los Bronces</option>
+    </select>
+
+    <label>Área</label>
+    <select id="area">
+      <option>Molienda</option>
+      <option>Chancado</option>
+      <option>Concentradora</option>
+      <option>Salas Eléctricas</option>
+    </select>
+
+    <div class="nav">
+      <button class="btn-gris" onclick="mostrar('seleccionProtocolo')">ANTERIOR</button>
+      <button onclick="guardarAvance()">GUARDAR</button>
+      <button onclick="mostrar('herramientas')">SIGUIENTE</button>
+    </div>
+  </div>
+</section>
+
+<section id="herramientas" class="pantalla">
+  <div class="topbar">Herramientas ingresadas al motor</div>
+
+  <div class="card check">
+    <label><input type="checkbox"> Filler</label>
+    <label><input type="checkbox"> Pie de metro</label>
+    <label><input type="checkbox"> Varilla de entrehierro</label>
+    <label><input type="checkbox"> Varilla de control dimensional</label>
+    <label><input type="checkbox"> Linterna</label>
+    <label><input type="checkbox"> Teléfono celular</label>
+
+    <label>Otro</label>
+    <input placeholder="Especificar otra herramienta">
+
+    <label>Foto herramientas entrada</label>
+    <input id="fotoHerramientasEntrada" type="file" accept="image/*" capture="environment">
+
+    <div class="nav">
+      <button class="btn-gris" onclick="mostrar('datos')">ANTERIOR</button>
+      <button onclick="guardarAvance()">GUARDAR</button>
+      <button onclick="mostrar('medicion')">SIGUIENTE</button>
+    </div>
+  </div>
+</section>
+
+<section id="medicion" class="pantalla">
+  <div class="topbar">Medición de Control Dimensional</div>
+
+  <div class="card">
+    <h3>Seleccione posición</h3>
+    <p><strong>Posición actual:</strong> <span id="posicionActual">0°</span></p>
+
+    <div class="posiciones">
+      <button class="pos activa-pos" onclick="cambiarPosicion('0°', this)">0°</button>
+      <button class="pos" onclick="cambiarPosicion('90°', this)">90°</button>
+      <button class="pos" onclick="cambiarPosicion('180°', this)">180°</button>
+      <button class="pos" onclick="cambiarPosicion('270°', this)">270°</button>
+    </div>
+
+    <h3>VERIFICACIÓN DEL SENSOR DE ENTREHIERRO</h3>
+
+    <label>Estado del sensor</label>
+    <div class="grupo-botones" id="estadoSensor">
+      <button type="button" class="btn-estado" onclick="seleccionarEstado(this)">🟢 OK</button>
+      <button type="button" class="btn-estado" onclick="seleccionarEstado(this)">🔴 FALLA</button>
+      <button type="button" class="btn-estado" onclick="seleccionarEstado(this)">⚪ N/A</button>
+    </div>
+
+    <label>Estado del cableado</label>
+    <div class="grupo-botones" id="estadoCableado">
+      <button type="button" class="btn-estado" onclick="seleccionarEstado(this)">🟢 OK</button>
+      <button type="button" class="btn-estado" onclick="seleccionarEstado(this)">🔴 FALLA</button>
+      <button type="button" class="btn-estado" onclick="seleccionarEstado(this)">⚪ N/A</button>
+    </div>
+
+    <label>Foto del sensor de entrehierro</label>
+    <label class="boton-foto">
+      📷 TOMAR / ADJUNTAR FOTO
+      <input type="file" accept="image/*" onchange="mostrarNombreFoto(this)">
+    </label>
+    <p class="nombre-foto">Ninguna foto seleccionada</p>
+
+    <label>Observaciones del sensor</label>
+    <textarea id="observacionesSensor" rows="2" placeholder="Ingrese observaciones si corresponde..."></textarea>
+
+    <h3>ENTREHIERRO</h3>
+    <table id="tablaEntrehierro">
+      <tr><th>N° Polo</th><th>Alimentación</th><th>Descarga</th><th>Prom.</th></tr>
+      <tr><td><input></td><td><input type="number" oninput="promedio(this)"></td><td><input type="number" oninput="promedio(this)"></td><td class="resultado">0.00</td></tr>
+      <tr><td><input></td><td><input type="number" oninput="promedio(this)"></td><td><input type="number" oninput="promedio(this)"></td><td class="resultado">0.00</td></tr>
+      <tr><td><input></td><td><input type="number" oninput="promedio(this)"></td><td><input type="number" oninput="promedio(this)"></td><td class="resultado">0.00</td></tr>
+      <tr><td><input></td><td><input type="number" oninput="promedio(this)"></td><td><input type="number" oninput="promedio(this)"></td><td class="resultado">0.00</td></tr>
+    </table>
+
+    <h3>CENTRO MAGNÉTICO</h3>
+    <table id="tablaCentroMagnetico">
+      <tr><th>N° Polo</th><th>Alimentación</th><th>Descarga</th><th>Prom.</th></tr>
+      <tr><td><input></td><td><input type="number" oninput="promedio(this)"></td><td><input type="number" oninput="promedio(this)"></td><td class="resultado">0.00</td></tr>
+      <tr><td><input></td><td><input type="number" oninput="promedio(this)"></td><td><input type="number" oninput="promedio(this)"></td><td class="resultado">0.00</td></tr>
+      <tr><td><input></td><td><input type="number" oninput="promedio(this)"></td><td><input type="number" oninput="promedio(this)"></td><td class="resultado">0.00</td></tr>
+      <tr><td><input></td><td><input type="number" oninput="promedio(this)"></td><td><input type="number" oninput="promedio(this)"></td><td class="resultado">0.00</td></tr>
+    </table>
+
+    <label>Foto evidencia medición</label>
+    <input type="file" accept="image/*">
+
+    <label>Observaciones</label>
+    <textarea rows="4"></textarea>
+
+    <div class="nav">
+      <button class="btn-gris" onclick="mostrar('herramientas')">ANTERIOR</button>
+      <button onclick="guardarAvance()">GUARDAR</button>
+      <button onclick="mostrar('resumen')">SIGUIENTE</button>
+    </div>
+  </div>
+</section>
+
+<section id="salida" class="pantalla">
+  <div class="topbar">Salida del motor</div>
+
+  <div class="card">
+    <h2>Control de herramientas al salir</h2>
+
+    <label>Foto herramientas salida</label>
+    <input id="fotoHerramientasSalida" type="file" accept="image/*" capture="environment">
+
+    <label>Observaciones de salida</label>
+    <textarea rows="4"></textarea>
+
+    <label>
+      <input type="checkbox">
+      Confirmo que todas las herramientas fueron retiradas del motor
+    </label>
+
+    <button class="btn-verde" onclick="confirmarSalidaMotor()">CONFIRMAR SALIDA</button>
+  </div>
+</section>
+
+<section id="resumen" class="pantalla">
+  <div class="topbar">Resultado de Mediciones</div>
+
+  <div class="card">
+    <h2>Resumen del Protocolo</h2>
+
+    <p><b>Protocolo:</b> <span id="resProtocolo"></span></p>
+    <p><b>Cliente:</b> <span id="resCliente"></span></p>
+    <p><b>Faena:</b> <span id="resFaena"></span></p>
+    <p><b>Área:</b> <span id="resArea"></span></p>
+
+    <h3>Resumen por posición</h3>
+    <p>0° — Guardado / En proceso</p>
+    <p>90° — Guardado / En proceso</p>
+    <p>180° — Guardado / En proceso</p>
+    <p>270° — Guardado / En proceso</p>
+
+    <label>Observaciones finales</label>
+    <textarea rows="4"></textarea>
+
+    <h3>Gráfico de Excentricidad</h3>
+    <canvas id="graficoExcentricidad" width="320" height="320"></canvas>
+
+    <div class="nav">
+      <button class="btn-gris" onclick="mostrar('medicion')">⬅️ ANTERIOR</button>
+      <button onclick="guardarAvance()">💾 GUARDAR</button>
+      <button onclick="dibujarGraficoExcentricidad()">📊 VER GRÁFICO</button>
+      <button class="btn-verde" onclick="generarPDF()">📄 GENERAR PDF</button>
+      <button class="btn-gris" onclick="mostrar('panel')">🏠 VOLVER AL PANEL</button>
+    </div>
+  </div>
+</section>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/database.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/app.js"></script>
+<script src="js/mediciones.js"></script>
+<script src="js/historial.js"></script>
+<script src="js/grafico.js"></script>
+<script src="js/pdf.js"></script>
+
+</body>
+</html>
