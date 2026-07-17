@@ -41,6 +41,21 @@ function dibujarGraficoExcentricidad() {
   const dy = dyMm * ESC;
   const excentricidad = Math.sqrt(dxMm * dxMm + dyMm * dyMm);
 
+  // ── criterio de aceptación (Paso CD) ──
+  const gapNominal = parseFloat((document.getElementById("gapNominal") || {}).value) || 0;
+  const tolAlerta  = parseFloat((document.getElementById("tolAlertaPct") || {}).value);
+  const tolFalla   = parseFloat((document.getElementById("tolFallaPct") || {}).value);
+
+  function banda(desvPct) {
+    if (isNaN(desvPct) || gapNominal <= 0) return { color: "#9aa0a6", txt: "SIN CRITERIO" };
+    if (desvPct <= tolAlerta) return { color: "#1a9d4b", txt: "OK" };
+    if (desvPct <= tolFalla)  return { color: "#e0a500", txt: "ALERTA" };
+    return { color: "#d43a2f", txt: "FUERA DE RANGO" };
+  }
+
+  const eccPct  = gapNominal > 0 ? (excentricidad / gapNominal) * 100 : NaN;
+  const vGlobal = banda(eccPct);
+
   // ── 1. fondo gris ──
   ctx.fillStyle = "#8a8a8a";
   ctx.fillRect(0, 0, W, H);
@@ -116,7 +131,11 @@ function dibujarGraficoExcentricidad() {
     ctx.fillStyle = "#ffffff";
     ctx.fillText(deg, lx, ly - 14);
 
-    ctx.fillStyle = "#1a1a1a";
+    let boxColor = "#1a1a1a";
+    if (gapNominal > 0 && val > 0) {
+      boxColor = banda(Math.abs(val - gapNominal) / gapNominal * 100).color;
+    }
+    ctx.fillStyle = boxColor;
     ctx.fillRect(lx - 21, ly - 11, 42, 20);
     ctx.strokeStyle = "#888888";
     ctx.lineWidth = 1;
@@ -144,6 +163,22 @@ function dibujarGraficoExcentricidad() {
   ctx.fillStyle = "#ffffff";
   ctx.textAlign = "center";
   ctx.fillText("Excentricidad: " + excentricidad.toFixed(2) + " mm", cx, H - 8);
+
+  // ── veredicto en pantalla (Paso CD) ──
+  const _vDiv = document.getElementById("veredictoEntrehierro");
+  if (_vDiv) {
+    if (gapNominal > 0) {
+      _vDiv.style.background = vGlobal.color;
+      _vDiv.style.color = "#ffffff";
+      _vDiv.textContent = "Excentricidad " + excentricidad.toFixed(2) + " mm = " +
+        eccPct.toFixed(1) + "% del nominal → " + vGlobal.txt +
+        "  (alerta ±" + tolAlerta + "% · rechazo ±" + tolFalla + "%)";
+    } else {
+      _vDiv.style.background = "#eeeeee";
+      _vDiv.style.color = "#333333";
+      _vDiv.textContent = "Ingrese el entrehierro nominal para evaluar el criterio";
+    }
+  }
 
   // ── 11. leyenda (arriba derecha) ──
   const legX = W - 118, legY = 28;

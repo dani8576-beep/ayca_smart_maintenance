@@ -1,4 +1,4 @@
-function generarPDF() {
+async function generarPDF() {
   try {
     if (!window.jspdf) {
       alert("Error: jsPDF no está cargado.");
@@ -15,7 +15,17 @@ function generarPDF() {
     const cliente = document.getElementById("cliente").value || "";
     const faena = document.getElementById("faena").value || "";
     const area = document.getElementById("area").value || "";
-    const tecnico = document.getElementById("usuario").value || "";
+
+    // Técnico: reutiliza el campo existente del protocolo; si viene vacío,
+    // respalda con el correo del usuario autenticado (sin tabla de perfiles todavía).
+    let tecnico = document.getElementById("tecnico")?.value || "";
+    if (!tecnico && typeof supabaseAYCA !== "undefined") {
+      try {
+        const { data } = await supabaseAYCA.auth.getUser();
+        tecnico = data?.user?.email || "";
+      } catch (e) {}
+    }
+
     const azul = [11, 49, 88];
 
     doc.setFillColor(...azul);
@@ -225,6 +235,7 @@ function generarPDFDielectrico() {
     const numProt = document.getElementById("numProtocoloDiel")?.value || "DL-SIN-NUMERO";
     const cliente = document.getElementById("clienteDiel")?.value  || "";
     const equipo  = document.getElementById("equipoDiel")?.value   || "";
+    const kvNom   = parseFloat(document.getElementById("kvNominalDiel")?.value);
 
     const pre  = (typeof datosDielEst1 !== "undefined") ? datosDielEst1.pre  : null;
     const post = (typeof datosDielEst1 !== "undefined") ? datosDielEst1.post : null;
@@ -345,13 +356,59 @@ function generarPDFDielectrico() {
       if (datos.l12 || datos.l13 || datos.l21) {
         doc.autoTable({
           startY: y,
-          head: [["Resistencia Óhmica", "T. Med.: " + (datos.rohm_temp || "—") + "°C", "L1-L2 [mΩ]", "L1-L3 [mΩ]", "L2-L1 [mΩ]"]],
+          head: [["Resistencia Óhmica", "T. Med.: " + (datos.rohm_temp || "—") + "°C", "L1-L2 [mΩ]", "L1-L3 [mΩ]", "L2-L3 [mΩ]"]],
           body: [["", "", datos.l12 || "—", datos.l13 || "—", datos.l21 || "—"]],
           theme: "grid",
           styles: { fontSize: 8, halign: "center" },
           headStyles: { fillColor: grisC, textColor: [0, 0, 0] }
         });
         y = doc.lastAutoTable.finalY + 4;
+      }
+
+      // ── Criterios IEEE 43: desbalance óhmico, IR mínima, tensión de prueba ──
+      {
+        const filasCrit = [];
+        const ls = [datos.l12, datos.l13, datos.l21].map(parseFloat).filter(v => !isNaN(v) && v > 0);
+        if (ls.length === 3) {
+          const mx = Math.max(...ls), mn = Math.min(...ls), pr = (ls[0] + ls[1] + ls[2]) / 3;
+          const db = pr > 0 ? ((mx - mn) / pr) * 100 : 0;
+          let est; if (db <= 2) est = "OK"; else if (db <= 5) est = "REVISAR"; else est = "FUERA DE RANGO";
+          filasCrit.push(["Desbalance entre fases", db.toFixed(2) + " %", est]);
+        }
+        const rc1 = parseFloat(datos.mediciones?.[1]?.rc);
+        const r1v = parseFloat(datos.mediciones?.[1]?.r);
+        const irVal = (!isNaN(rc1) && rc1 > 0) ? rc1 : r1v;
+        if (!isNaN(irVal) && irVal > 0) {
+          const minMO = Math.max((typeof IR_MIN_MOHM !== "undefined" ? IR_MIN_MOHM : 100), isNaN(kvNom) ? 0 : kvNom + 1);
+          filasCrit.push(["IR @1min (mín. " + minMO.toFixed(0) + " MΩ)", irVal.toFixed(2) + " GΩ", irVal >= minMO / 1000 ? "OK" : "BAJO MÍNIMO"]);
+          if (!isNaN(rc1) && rc1 > (typeof IP_MAX_GOHM !== "undefined" ? IP_MAX_GOHM : 5)) {
+            filasCrit.push(["Índice de Polarización (IEEE 43)", "No concluyente — IR > 5 GΩ", "—"]);
+          }
+        }
+        const vp = parseFloat(datos.vprueba);
+        if (!isNaN(kvNom) && kvNom > 0 && !isNaN(vp) && typeof _rangoTensionPrueba === "function") {
+          const [vmin, vmax] = _rangoTensionPrueba(kvNom);
+          filasCrit.push(["V.Prueba (rec. " + vmin + "–" + vmax + " V)", vp + " V", (vp >= vmin && vp <= vmax) ? "OK" : "REVISAR"]);
+        }
+        if (filasCrit.length) {
+          doc.autoTable({
+            startY: y,
+            head: [["Criterio IEEE 43", "Valor", "Estado"]],
+            body: filasCrit,
+            theme: "grid",
+            styles: { fontSize: 8 },
+            headStyles: { fillColor: grisC, textColor: [0, 0, 0] },
+            columnStyles: { 0: { cellWidth: 95 }, 2: { fontStyle: "bold", halign: "center" } },
+            didParseCell: function (dc) {
+              if (dc.section === "body" && dc.column.index === 2) {
+                const t = String(dc.cell.raw);
+                if (t === "OK") dc.cell.styles.textColor = [22, 101, 52];
+                else if (t === "FUERA DE RANGO" || t === "BAJO MÍNIMO" || t === "REVISAR") dc.cell.styles.textColor = [153, 27, 27];
+              }
+            }
+          });
+          y = doc.lastAutoTable.finalY + 4;
+        }
       }
 
       // Observaciones
@@ -738,5 +795,273 @@ function generarReporteEntrega() {
   } catch (err) {
     alert("Error al generar el reporte: " + err.message);
     console.error(err);
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// PROTOCOLO DE ENTREGA — ENTREHIERRO Y CENTRO MAGNÉTICO
+// ══════════════════════════════════════════════════════
+function generarEntregaCD() {
+  if (!window.jspdf) { alert("jsPDF no está cargado."); return; }
+  if (typeof guardarDatosPosicion === "function") guardarDatosPosicion();
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF("p","mm","a4");
+
+  const BL=[255,255,255], BK=[0,0,0], gH=[220,220,220], gSH=[240,240,240], azul=[11,49,88];
+  const tblBase={theme:'grid',styles:{fontSize:7.5,halign:'center',cellPadding:2,fillColor:BL,textColor:BK,lineColor:BK,lineWidth:0.3}};
+  const g = id => document.getElementById(id)?.value || '';
+
+  const _header = () => {
+    doc.setFont("helvetica","bold"); doc.setFontSize(22); doc.setTextColor(0,0,0);
+    doc.text("AyCA",14,14);
+    doc.setFont("helvetica","normal"); doc.setFontSize(9);
+    doc.text("Accionamiento y Control Automático",14,21);
+    doc.setDrawColor(0,0,0); doc.setLineWidth(0.5);
+    doc.rect(148,5,48,16); doc.line(148,13,196,13);
+    doc.setFont("helvetica","normal"); doc.setFontSize(9);
+    doc.text("Codigo: PT-1003",172,10,{align:"center"});
+    doc.text("Revisión: 1",    172,18,{align:"center"});
+    doc.setLineWidth(0.8); doc.line(14,25,196,25);
+  };
+
+  _header();
+  let y=31;
+
+  doc.setFontSize(9.5);
+  [["N° Protocolo:",g("protocolo"),"Fecha:",g("fecha")],
+   ["Cliente:",     g("cliente"),  "Faena:",g("faena")],
+   ["Equipo:",      g("equipo"),   "Técnico:",g("tecnico")],
+   ["Área:",        g("area"),     "Evento:",g("evento")]
+  ].forEach(([l1,v1,l2,v2])=>{
+    doc.setFont("helvetica","bold");   doc.text(l1, 14,y);
+    doc.setFont("helvetica","normal"); doc.text(v1, 46,y);
+    doc.setFont("helvetica","bold");   doc.text(l2,114,y);
+    doc.setFont("helvetica","normal"); doc.text(v2,138,y);
+    y+=5.5;
+  });
+  doc.setLineWidth(0.4); doc.line(14,y,196,y); y+=6;
+
+  doc.setFont("helvetica","bold"); doc.setFontSize(15); doc.setTextColor(0,0,0);
+  doc.text("1   ENTREHIERRO Y CENTRO MAGNÉTICO",14,y); y+=8;
+
+  const secHead = titulo => [
+    [{content:titulo,colSpan:4,styles:{fillColor:gH,halign:'center',fontStyle:'bold',fontSize:8,textColor:BK}}],
+    ['N° Polo','Alimentación','Descarga','Promedio'].map(t=>
+      ({content:t,styles:{fillColor:gSH,halign:'center',fontStyle:'bold',fontSize:7,textColor:BK}}))
+  ];
+
+  ["0°","90°","180°","270°"].forEach(pos=>{
+    const datos=datosPosiciones[pos];
+    if(!datos) return;
+    const ehFil=(datos.entrehierro||[]).filter(f=>f.polo||f.alimentacion||f.descarga);
+    const cmFil=(datos.centroMagnetico||[]).filter(f=>f.polo||f.alimentacion||f.descarga);
+    if(!ehFil.length&&!cmFil.length) return;
+    if(y>240){doc.addPage();y=20;}
+
+    doc.autoTable({...tblBase,startY:y,
+      body:[[{content:`POSICIÓN ${pos}`,styles:{fontStyle:'bold',halign:'center',fillColor:azul,textColor:[255,255,255],fontSize:10,cellPadding:3}}]],
+      margin:{left:14,right:14}
+    });
+    y=doc.lastAutoTable.finalY+2;
+
+    if(ehFil.length){
+      doc.autoTable({...tblBase,startY:y,head:secHead('Entrehierro'),
+        body:ehFil.map(f=>[f.polo,f.alimentacion,f.descarga,f.promedio]),
+        margin:{left:14,right:14}
+      });
+      y=doc.lastAutoTable.finalY+2;
+    }
+    if(cmFil.length){
+      doc.autoTable({...tblBase,startY:y,head:secHead('Centro Magnético'),
+        body:cmFil.map(f=>[f.polo,f.alimentacion,f.descarga,f.promedio]),
+        margin:{left:14,right:14}
+      });
+      y=doc.lastAutoTable.finalY+5;
+    }
+  });
+
+  if(y>250){doc.addPage();y=30;}
+  doc.setLineWidth(0.4); doc.line(14,y,196,y); y+=10;
+  doc.setFont("helvetica","normal"); doc.setFontSize(9);
+  doc.line(14,y+15,88,y+15);   doc.text("Técnico Responsable AyCA",14,y+21);
+  doc.line(108,y+15,196,y+15); doc.text("Supervisor / Cliente",108,y+21);
+
+  const total=doc.getNumberOfPages();
+  for(let p=1;p<=total;p++){
+    doc.setPage(p);
+    doc.setFont("helvetica","normal"); doc.setFontSize(6.5); doc.setTextColor(100,100,100);
+    doc.text("Servicios en Accionamiento y Control Automático SpA. RUT 76.845.043-9  Av. Pdte. Kennedy Lateral 7900, Oficina 502, Vitacura, Santiago, Chile. Teléfono +569 23266267",105,290,{align:"center",maxWidth:182});
+  }
+  doc.save(`${g("protocolo")||'CD'}_Entrega.pdf`);
+}
+
+// ══════════════════════════════════════════════════════
+// PROTOCOLO DE ENTREGA — MEDICIONES DIELÉCTRICAS
+// ══════════════════════════════════════════════════════
+function generarEntregaDielectrico() {
+  if (!window.jspdf) { alert("jsPDF no está cargado. Recarga la página e intenta de nuevo."); return; }
+  try {
+  if (typeof guardarEst1  === "function") guardarEst1();
+  if (typeof guardarEst2  === "function") guardarEst2();
+  if (typeof guardarRotor === "function") guardarRotor();
+
+  const preEst1  = (typeof datosDielEst1  !== "undefined") ? datosDielEst1.pre   : null;
+  const postEst1 = (typeof datosDielEst1  !== "undefined") ? datosDielEst1.post  : null;
+  const preEst2  = (typeof datosDielEst2  !== "undefined") ? datosDielEst2.pre   : null;
+  const postEst2 = (typeof datosDielEst2  !== "undefined") ? datosDielEst2.post  : null;
+  const preRotor = (typeof datosDielRotor !== "undefined") ? datosDielRotor.pre  : null;
+  const postRotor= (typeof datosDielRotor !== "undefined") ? datosDielRotor.post : null;
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF("p","mm","a4");
+  if (typeof doc.autoTable !== "function") {
+    alert("jsPDF-AutoTable no está disponible.\nRecarga la página e inténtalo de nuevo.");
+    return;
+  }
+
+  const BL=[255,255,255], BK=[0,0,0], gSH=[240,240,240], azul=[11,49,88];
+  const TIEMPOS=["0,5","1","2","3","4","5","6","7","8","9","10"];
+
+  const numProt = document.getElementById("numProtocoloDiel")?.value || "";
+  const cliente = document.getElementById("clienteDiel")?.value || "";
+  const equipo  = document.getElementById("equipoDiel")?.value  || "";
+  const faena   = document.getElementById("faenaDiel")?.value   || "";
+  const area    = document.getElementById("areaDiel")?.value    || "";
+  const evento  = document.getElementById("eventoDiel")?.value  || "";
+  const tecnico = document.getElementById("tecnicoDiel")?.value || "";
+  const fecha   = document.getElementById("fechaDiel")?.value   || "";
+
+  const lbl = txt=>({content:txt,styles:{fontStyle:'bold',fillColor:gSH,textColor:BK}});
+
+  // ─── Header AyCA + datos generales en la página actual ───
+  function addHeader() {
+    doc.setFont("helvetica","bold"); doc.setFontSize(22); doc.setTextColor(0,0,0);
+    doc.text("AyCA",14,14);
+    doc.setFont("helvetica","normal"); doc.setFontSize(9);
+    doc.text("Accionamiento y Control Automático",14,21);
+    doc.setDrawColor(0,0,0); doc.setLineWidth(0.5);
+    doc.rect(148,5,48,16); doc.line(148,13,196,13);
+    doc.text("Codigo: PT-1004",172,10,{align:"center"});
+    doc.text("Revisión: 1",    172,18,{align:"center"});
+    doc.setLineWidth(0.8); doc.line(14,25,196,25);
+    let y=31;
+    doc.setFontSize(9.5);
+    [["N° Protocolo:",numProt,"Fecha:",  fecha],
+     ["Cliente:",     cliente,"Faena:",  faena],
+     ["Equipo:",      equipo, "Técnico:",tecnico],
+     ["Área:",        area,   "Evento:", evento]
+    ].forEach(([l1,v1,l2,v2])=>{
+      doc.setFont("helvetica","bold");   doc.text(l1, 14,y);
+      doc.setFont("helvetica","normal"); doc.text(v1, 46,y);
+      doc.setFont("helvetica","bold");   doc.text(l2,114,y);
+      doc.setFont("helvetica","normal"); doc.text(v2,138,y);
+      y+=5.5;
+    });
+    doc.setLineWidth(0.4); doc.line(14,y,196,y); y+=6;
+    doc.setFont("helvetica","bold"); doc.setFontSize(15); doc.setTextColor(0,0,0);
+    doc.text("1   MEDICIONES DIELÉCTRICAS",14,y); y+=8;
+    return y;
+  }
+
+  // ─── Par de tablas LADO A LADO: [banner PRE | banner POST] / [tabla PRE | tabla POST] ───
+  // mL = margin izquierda, mR = margin derecha (misma startY para quedar en columnas)
+  function addSideBySide(y, bannerIzq, tituloIzq, datosIzq, bannerDer, tituloDer, datosDer) {
+    const mL = {left:14, right:109};
+    const mR = {left:109, right:14};
+    const cS = {0:{cellWidth:30}, 1:{cellWidth:57}};
+    const sty = {fontSize:8,cellPadding:2,fillColor:BL,textColor:BK,lineColor:BK,lineWidth:0.3};
+    const bSty = {fillColor:BL,textColor:BK,lineColor:BK,lineWidth:0.3};
+
+    // Banners lado a lado (mismo startY)
+    const sYb = y;
+    doc.autoTable({theme:'grid',startY:sYb,
+      body:[[{content:bannerIzq,styles:{fontStyle:'bold',halign:'center',fillColor:azul,textColor:[255,255,255],fontSize:9,cellPadding:2}}]],
+      styles:bSty, margin:mL
+    });
+    const bH1 = doc.lastAutoTable.finalY;
+    doc.autoTable({theme:'grid',startY:sYb,
+      body:[[{content:bannerDer,styles:{fontStyle:'bold',halign:'center',fillColor:azul,textColor:[255,255,255],fontSize:9,cellPadding:2}}]],
+      styles:bSty, margin:mR
+    });
+    const sYt = Math.max(bH1, doc.lastAutoTable.finalY) + 1;
+
+    // Cuerpo de tabla reutilizable
+    function body(d) {
+      const m = d?.mediciones||[];
+      return [
+        [lbl("Fecha"),       d?.fecha   ||""],
+        [lbl("V.Prueba [V]"),d?.vprueba ||""],
+        [lbl("T°[°C]"),      d?.temp    ||""],
+        [lbl("IP"),          d?.ip      ||""],
+        [lbl("t [min]"),     lbl("R [GΩ]")],
+        ...TIEMPOS.map((t,i)=>[{content:t,styles:{halign:'center'}}, m[i]?.r||""])
+      ];
+    }
+
+    // Tablas lado a lado (mismo startY)
+    doc.autoTable({theme:'grid',startY:sYt,
+      head:[[{content:tituloIzq,colSpan:2,styles:{halign:'center',fillColor:azul,textColor:[255,255,255],fontStyle:'bold'}}]],
+      body:body(datosIzq), styles:sty, columnStyles:cS, margin:mL
+    });
+    const tH1 = doc.lastAutoTable.finalY;
+    doc.autoTable({theme:'grid',startY:sYt,
+      head:[[{content:tituloDer,colSpan:2,styles:{halign:'center',fillColor:azul,textColor:[255,255,255],fontStyle:'bold'}}]],
+      body:body(datosDer), styles:sty, columnStyles:cS, margin:mR
+    });
+    return Math.max(tH1, doc.lastAutoTable.finalY);
+  }
+
+  // ─── Firmas (solo página 3) ───
+  function addFirmas(y) {
+    y+=8;
+    doc.setLineWidth(0.4); doc.line(14,y,196,y); y+=10;
+    doc.setFont("helvetica","normal"); doc.setFontSize(9); doc.setTextColor(0,0,0);
+    doc.line(14,y+15,88,y+15);   doc.text("Técnico Responsable AyCA",14,y+21);
+    doc.line(108,y+15,196,y+15); doc.text("Supervisor / Cliente",108,y+21);
+  }
+
+  // ══════════════════════════════════════════════════════════════════
+  // PÁGINA 1: Encabezado + ESTATOR 1 [PRE | POST] lado a lado + pie
+  // ══════════════════════════════════════════════════════════════════
+  let y = addHeader();
+  addSideBySide(y,
+    "ESTATOR — PRE MANTENIMIENTO",  "ESTATOR 1", preEst1,
+    "ESTATOR — POST MANTENIMIENTO", "ESTATOR 1", postEst1
+  );
+
+  // Pie corporativo solo en página 1
+  doc.setFont("helvetica","normal"); doc.setFontSize(6.5); doc.setTextColor(100,100,100);
+  doc.text("Servicios en Accionamiento y Control Automático SpA. RUT 76.845.043-9  Av. Pdte. Kennedy Lateral 7900, Oficina 502, Vitacura, Santiago, Chile. Teléfono +569 23266267",105,290,{align:"center",maxWidth:182});
+
+  // ══════════════════════════════════════════════════════════════════
+  // PÁGINA 2: ESTATOR 2 [PRE | POST] lado a lado — sin encabezado, sin pie
+  // ══════════════════════════════════════════════════════════════════
+  doc.addPage();
+  addSideBySide(20,
+    "ESTATOR — PRE MANTENIMIENTO",  "ESTATOR 2", preEst2,
+    "ESTATOR — POST MANTENIMIENTO", "ESTATOR 2", postEst2
+  );
+
+  // ══════════════════════════════════════════════════════════════════
+  // PÁGINA 3: ROTOR [PRE | POST] lado a lado + firmas — sin encabezado, sin pie
+  // ══════════════════════════════════════════════════════════════════
+  doc.addPage();
+  y = addSideBySide(20,
+    "ROTOR — PRE MANTENIMIENTO",  "ROTOR", preRotor,
+    "ROTOR — POST MANTENIMIENTO", "ROTOR", postRotor
+  );
+  addFirmas(y);
+
+  const filename = `${numProt||'MD'}_Entrega.pdf`;
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  if (isIOS) {
+    window.open(doc.output('bloburl'), '_blank');
+  } else {
+    doc.save(filename);
+  }
+  } catch (err) {
+    console.error("Error generando PDF dieléctrico:", err);
+    alert("Error al generar el PDF: " + err.message + "\n\nRecarga la página e inténtalo de nuevo.");
   }
 }

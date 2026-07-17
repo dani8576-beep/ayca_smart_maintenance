@@ -141,6 +141,7 @@ function calcularCorrEst1(idx) {
     rcEl.textContent = "—";
   }
   calcularIPEst1();
+  evaluarAislamientoEst1();
 }
 
 function calcularIPEst1() {
@@ -192,7 +193,7 @@ function cargarEst1(modo) {
   const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ""; };
 
   if (!d) {
-    set("est1_fecha", ""); set("est1_vprueba", "1000"); set("est1_temp", "");
+    set("est1_fecha", ""); set("est1_vprueba", "2500"); set("est1_temp", "");
     set("est1_if", ""); set("est1_cap", ""); set("est1_obs", "");
     set("est1_rohm_temp", ""); set("est1_l12", ""); set("est1_l13", ""); set("est1_l21", "");
     const ktEl = document.getElementById("est1_kt"); if (ktEl) ktEl.textContent = "—";
@@ -206,7 +207,7 @@ function cargarEst1(modo) {
   }
 
   set("est1_fecha",     d.fecha);
-  set("est1_vprueba",   d.vprueba || "1000");
+  set("est1_vprueba",   d.vprueba || "2500");
   set("est1_temp",      d.temp);
   set("est1_if",        d.if_nA);
   set("est1_cap",       d.cap);
@@ -226,6 +227,9 @@ function cargarEst1(modo) {
   });
 
   calcularIPEst1();
+  calcularDesbalanceEst1();
+  evaluarAislamientoEst1();
+  avisoTensionEst1();
 }
 
 function _dibujarGrafico(datos, canvasId) {
@@ -365,11 +369,12 @@ function calcularCorrEst2(idx) {
   if (isNaN(r) || isNaN(kt) || kt === 0) { rcEl.textContent = "—"; calcularIPEst2(); return; }
   rcEl.textContent = (r * kt).toFixed(3);
   calcularIPEst2();
+  evaluarAislamientoEst2();
 }
 
 function calcularIPEst2() {
-  const r1  = parseFloat(document.getElementById("est2_rc_1")?.textContent);
-  const r10 = parseFloat(document.getElementById("est2_rc_10")?.textContent);
+  const r1  = parseFloat(document.getElementById("est2_r_1")?.value);
+  const r10 = parseFloat(document.getElementById("est2_r_10")?.value);
   const ipEl = document.getElementById("est2_ip");
   const stEl = document.getElementById("est2_ip_estado");
   if (!ipEl) return;
@@ -405,14 +410,14 @@ function cargarEst2(modo) {
   const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ""; };
   if (!d) {
     ["est2_fecha","est2_if","est2_cap","est2_obs","est2_rohm_temp","est2_l12","est2_l13","est2_l21"].forEach(id => set(id, ""));
-    set("est2_vprueba", "1000"); set("est2_temp", "");
+    set("est2_vprueba", "2500"); set("est2_temp", "");
     const ktEl = document.getElementById("est2_kt"); if (ktEl) ktEl.textContent = "—";
     const ipEl = document.getElementById("est2_ip"); if (ipEl) ipEl.textContent = "—";
     const stEl = document.getElementById("est2_ip_estado"); if (stEl) stEl.textContent = "";
     for (let i = 0; i <= 10; i++) { set("est2_r_" + i, ""); const rc = document.getElementById("est2_rc_" + i); if (rc) rc.textContent = "—"; }
     return;
   }
-  set("est2_fecha", d.fecha); set("est2_vprueba", d.vprueba || "1000"); set("est2_temp", d.temp);
+  set("est2_fecha", d.fecha); set("est2_vprueba", d.vprueba || "2500"); set("est2_temp", d.temp);
   set("est2_if", d.if_nA); set("est2_cap", d.cap); set("est2_obs", d.obs);
   set("est2_rohm_temp", d.rohm_temp); set("est2_l12", d.l12); set("est2_l13", d.l13); set("est2_l21", d.l21);
   const ktEl = document.getElementById("est2_kt"); if (ktEl) ktEl.textContent = d.kt || "—";
@@ -422,6 +427,9 @@ function cargarEst2(modo) {
     const rc = document.getElementById("est2_rc_" + i); if (rc) rc.textContent = m.rc || "—";
   });
   calcularIPEst2();
+  calcularDesbalanceEst2();
+  evaluarAislamientoEst2();
+  avisoTensionEst2();
 }
 
 // ── Rotor ──
@@ -456,8 +464,8 @@ function calcularCorrRotor(idx) {
 }
 
 function calcularIPRotor() {
-  const r1  = parseFloat(document.getElementById("rotor_rc_1")?.textContent);
-  const r10 = parseFloat(document.getElementById("rotor_rc_10")?.textContent);
+  const r1  = parseFloat(document.getElementById("rotor_r_1")?.value);
+  const r10 = parseFloat(document.getElementById("rotor_r_10")?.value);
   const ipEl = document.getElementById("rotor_ip");
   const stEl = document.getElementById("rotor_ip_estado");
   if (!ipEl) return;
@@ -469,6 +477,38 @@ function calcularIPRotor() {
     else if (ip >= 2) { stEl.textContent = "⚠️ ACEPTABLE"; stEl.style.color = "#fbbf24"; }
     else               { stEl.textContent = "❌ REVISAR";   stEl.style.color = "#f87171"; }
   }
+}
+
+// ── Desbalance de resistencia óhmica entre fases ──
+// % = (Rmáx - Rmín) / Rprom × 100. Usa valores crudos (la temperatura se cancela).
+// Umbrales por defecto — AJUSTAR según especificación del fabricante (ABB/Siemens GMD).
+const DESB_LIMITE_OK   = 2;   // ≤ 2 %  → OK
+const DESB_LIMITE_WARN = 5;   // 2–5 %  → revisar ; > 5 % → fuera de rango
+
+function calcularDesbalanceEst1() { _desbalanceFases("est1_l12","est1_l13","est1_l21","est1_desb"); }
+function calcularDesbalanceEst2() { _desbalanceFases("est2_l12","est2_l13","est2_l21","est2_desb"); }
+
+function _desbalanceFases(idA, idB, idC, idOut) {
+  const out = document.getElementById(idOut);
+  if (!out) return;
+  const vals = [idA, idB, idC]
+    .map(id => parseFloat(document.getElementById(id)?.value))
+    .filter(v => !isNaN(v) && v > 0);
+  if (vals.length < 3) {
+    out.textContent = "Desbalance entre fases: —";
+    out.style.background = "#f1f5f9"; out.style.color = "#374151";
+    return;
+  }
+  const max  = Math.max(...vals);
+  const min  = Math.min(...vals);
+  const prom = (vals[0] + vals[1] + vals[2]) / 3;
+  const desb = prom > 0 ? ((max - min) / prom) * 100 : 0;
+  let etq, bg, fg;
+  if (desb <= DESB_LIMITE_OK)        { etq = "✔ OK";              bg = "#dcfce7"; fg = "#166534"; }
+  else if (desb <= DESB_LIMITE_WARN) { etq = "⚠ REVISAR";        bg = "#fef9c3"; fg = "#854d0e"; }
+  else                                { etq = "✖ FUERA DE RANGO"; bg = "#fecaca"; fg = "#991b1b"; }
+  out.textContent = `Desbalance entre fases: ${desb.toFixed(2)} %  ${etq}`;
+  out.style.background = bg; out.style.color = fg;
 }
 
 function guardarRotor() {
@@ -532,13 +572,94 @@ function nuevoDielectrico() {
   localStorage.setItem("datosDielEst2",  JSON.stringify(datosDielEst2));
   localStorage.setItem("datosDielRotor", JSON.stringify(datosDielRotor));
 
-  ["numProtocoloDiel", "equipoDiel"].forEach(id => { const el = document.getElementById(id); if (el) el.value = ""; });
+  ["numProtocoloDiel","equipoDiel","kvNominalDiel","eventoDiel","fechaDiel","tecnicoDiel"].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = "";
+  });
   const clienteEl = document.getElementById("clienteDiel");
   if (clienteEl) clienteEl.selectedIndex = 0;
+  const faenaEl = document.getElementById("faenaDiel");
+  if (faenaEl) faenaEl.selectedIndex = 0;
+  const areaEl = document.getElementById("areaDiel");
+  if (areaEl) areaEl.selectedIndex = 0;
 
   modoEst1  = "pre";
   modoEst2  = "pre";
   modoRotor = "pre";
 
   mostrar("dielectrico");
+}
+
+// ── Criterios IEEE 43: IR mínima a 40°C + validez del IP ──────────────
+// Mínimo recomendado para bobinado form-wound (IEEE 43-2000): máx(100 MΩ, kV+1).
+// Si R@1min corregida a 40°C > 5 GΩ, el IP no es concluyente y no se marca
+// "REVISAR". AJUSTAR estas constantes según especificación del fabricante (ABB/Siemens).
+const IR_MIN_MOHM = 100;  // piso IEEE 43 form-wound, en MΩ @40°C
+const IP_MAX_GOHM = 5;    // R1min@40°C > 5 GΩ → IP no concluyente
+
+function evaluarAislamientoEst1() { _evaluarAislamiento("est1"); }
+function evaluarAislamientoEst2() { _evaluarAislamiento("est2"); }
+
+function _evaluarAislamiento(pref) {
+  const out = document.getElementById(pref + "_irmin");
+  if (!out) return;
+
+  // R@1min: preferir el valor corregido a 40°C; si no hay temperatura, usar el crudo.
+  const rc1   = parseFloat(document.getElementById(pref + "_rc_1")?.textContent);
+  const r1raw = parseFloat(document.getElementById(pref + "_r_1")?.value);
+  const corr  = !isNaN(rc1) && rc1 > 0;
+  const r1GO  = corr ? rc1 : r1raw;   // en GΩ
+
+  if (isNaN(r1GO) || r1GO <= 0) {
+    out.textContent = "IR @1min: —";
+    out.style.background = "#f1f5f9"; out.style.color = "#374151";
+    return;
+  }
+
+  const kv     = parseFloat(document.getElementById("kvNominalDiel")?.value);
+  const minMO  = Math.max(IR_MIN_MOHM, isNaN(kv) ? 0 : kv + 1);  // MΩ
+  const minGO  = minMO / 1000;                                   // GΩ
+  const cumple = r1GO >= minGO;
+  const suf    = corr ? "@40°C" : "(sin corregir)";
+
+  out.textContent =
+    `IR @1min ${suf}: ${r1GO.toFixed(2)} GΩ · mín. IEEE 43 ${minGO.toFixed(2)} GΩ (${minMO.toFixed(0)} MΩ)  ${cumple ? "✔ OK" : "✖ BAJO MÍNIMO"}`;
+  out.style.background = cumple ? "#dcfce7" : "#fecaca";
+  out.style.color      = cumple ? "#166534" : "#991b1b";
+
+  // Excepción del IP: R1min@40°C > 5 GΩ → IP no concluyente (IEEE 43).
+  const estadoEl = document.getElementById(pref + "_ip_estado");
+  if (estadoEl && corr && r1GO > IP_MAX_GOHM) {
+    estadoEl.textContent = "IP no concluyente · IR > 5 GΩ (IEEE 43)";
+    estadoEl.style.color = "#60a5fa";
+  }
+}
+
+// ── Tensión de prueba DC recomendada (IEEE 43-2000, Tabla 1) ──────────
+// Devuelve [mín, máx] en V según la tensión nominal L-L del bobinado.
+function _rangoTensionPrueba(kv) {
+  const v = kv * 1000;
+  if (v <= 1000)  return [500, 500];
+  if (v <= 2500)  return [500, 1000];
+  if (v <= 5000)  return [1000, 2500];
+  if (v <= 12000) return [2500, 5000];
+  return [5000, 10000];
+}
+
+function avisoTensionEst1() { _avisoTension("est1"); }
+function avisoTensionEst2() { _avisoTension("est2"); }
+
+function _avisoTension(pref) {
+  const out = document.getElementById(pref + "_vaviso");
+  if (!out) return;
+  const kv = parseFloat(document.getElementById("kvNominalDiel")?.value);
+  const vp = parseFloat(document.getElementById(pref + "_vprueba")?.value);
+  if (isNaN(kv) || kv <= 0 || isNaN(vp)) { out.textContent = ""; return; }
+  const [min, max] = _rangoTensionPrueba(kv);
+  if (vp >= min && vp <= max) {
+    out.textContent = `✔ IEEE 43: ${min}–${max} V para ${kv} kV`;
+    out.style.color = "#166534";
+  } else {
+    out.textContent = `⚠ IEEE 43 recomienda ${min}–${max} V para ${kv} kV`;
+    out.style.color = "#b45309";
+  }
 }

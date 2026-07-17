@@ -14,10 +14,234 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{border:1px solid 
 .resultado{background:#dcfce7;color:#166534;padding:6px;border-radius:6px;font-weight:bold}.nav{display:flex;justify-content:space-between;flex-wrap:wrap}.logo{text-align:center;margin-top:40px}.logo h1{font-size:38px}.check label{display:block;margin:8px 0}
 .grupo-botones{display:flex;gap:8px;margin-bottom:12px}.btn-estado{flex:1;padding:12px;border:2px solid #0b5cc7;border-radius:8px;background:white;color:#0b3158;font-weight:bold;cursor:pointer}.btn-estado.seleccionado{background:#0b5cc7;color:white}
 .boton-foto{display:block;background:#0b5cc7;color:white;padding:12px;border-radius:8px;text-align:center;font-weight:bold;cursor:pointer;margin-top:8px}.boton-foto input{display:none}.nombre-foto{font-size:14px;color:#374151;margin-top:8px}
+.sel-crit{padding:3px 2px;font-size:10px;margin:0;width:100%;border-radius:4px;border:1px solid #cbd5e1;cursor:pointer}
+.inp-alt{text-align:center!important;background:#fef3c7!important;font-weight:bold;color:#92400e;margin:0!important;padding:5px!important;border:1px solid #fcd34d!important}
+.btn-sino{padding:5px 7px;font-size:10px;font-weight:bold;margin:0;border-radius:4px;background:#f1f5f9;color:#374151;border:1px solid #cbd5e1;min-width:34px;cursor:pointer}
+.sino-si{background:#16a34a!important;color:white!important;border-color:#16a34a!important}
+.sino-no{background:#dc2626!important;color:white!important;border-color:#dc2626!important}
+.sino-na{background:#64748b!important;color:white!important;border-color:#64748b!important}
+.sino-item{border-bottom:1px solid #e2e8f0;padding:7px 0}
+.sino-top{display:flex;justify-content:space-between;align-items:center;gap:4px}
+.sino-label{font-size:12px;flex:1;line-height:1.3;color:#1f2937}
+.sino-btns{display:flex;gap:2px;flex-shrink:0}
+.sino-obs{font-size:11px;margin:4px 0 0;padding:5px 8px}
+
+/* ── Componente reutilizable: valor numérico + selector de unidad ── */
+.medicion-control{display:flex;margin:4px 0 0;border:1px solid #cbd5e1;border-radius:8px;overflow:hidden}
+.medicion-val{flex:1;width:auto;padding:5px 8px;font-size:12px;border:none;border-right:1px solid #cbd5e1;border-radius:0;margin:0;background:white;min-width:0;outline:none}
+.medicion-val:focus{background:#f0f7ff}
+.medicion-unit{width:auto;padding:5px 8px;font-size:12px;border:none;border-radius:0;margin:0;background:#f1f5f9;color:#0b3158;font-weight:700;cursor:pointer;flex-shrink:0;outline:none}
+
 .pantalla {
   display: none;
 }
 
 .pantalla.activa {
   display: block;
+}
+
+/* ════════════════════════════════════════════════════════════
+   SIDEBAR — oculto por defecto (móvil primero)
+   ════════════════════════════════════════════════════════════ */
+.sidebar-desktop { display: none; }
+
+/* ════════════════════════════════════════════════════════════
+   VISTA ESCRITORIO  ≥ 768 px
+   ════════════════════════════════════════════════════════════ */
+@media (min-width: 768px) {
+
+  /* ── Fondo ── */
+  body { background: #c4cdd8; }
+
+  /* ── App: desplaza contenido para el sidebar fijo ── */
+  .app {
+    max-width: none;
+    margin-left: 240px;
+    background: #f0f4f8;
+    min-height: 100vh;
+  }
+
+  /* ──────── SIDEBAR ──────── */
+  .sidebar-desktop {
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    left: 0; top: 0;
+    width: 240px;
+    height: 100vh;
+    background: #0b3158;
+    overflow-y: auto;
+    z-index: 500;
+    color: white;
+    box-shadow: 3px 0 18px rgba(0,0,0,0.35);
+  }
+
+  .sidebar-logo {
+    text-align: center;
+    padding: 30px 16px 24px;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    flex-shrink: 0;
+  }
+  .s-icon  { font-size: 38px; line-height: 1; display: block; }
+  .s-title { display: block; font-weight: bold; font-size: 20px; letter-spacing: 2px; margin-top: 8px; }
+  .s-sub   { display: block; font-size: 10px; opacity: 0.55; margin-top: 4px; text-transform: uppercase; letter-spacing: 1px; }
+
+  .sidebar-section {
+    padding: 18px 20px 6px;
+    font-size: 10px;
+    font-weight: bold;
+    letter-spacing: 1.8px;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.4);
+    flex-shrink: 0;
+  }
+
+  .sidebar-item {
+    padding: 12px 20px;
+    font-size: 13px;
+    cursor: pointer;
+    color: rgba(255,255,255,0.82);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: background 0.15s, border-left-color 0.15s;
+    border-left: 3px solid transparent;
+    flex-shrink: 0;
+  }
+  .sidebar-item:hover {
+    background: rgba(255,255,255,0.1);
+    color: white;
+    border-left-color: #3b9eff;
+  }
+  .si-icon { font-size: 15px; flex-shrink: 0; }
+
+  .sidebar-desktop::-webkit-scrollbar { width: 4px; }
+  .sidebar-desktop::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 2px; }
+
+  /* ──────── LAYOUT GENERAL ──────── */
+
+  /* Pantallas: padding horizontal generoso, ancho legible */
+  .pantalla { padding: 24px 40px; max-width: 1080px; }
+
+  /* Topbar: más compacto */
+  .topbar { font-size: 15px; padding: 12px 24px; }
+
+  /* Cards: más espaciosas */
+  .card { padding: 24px 28px; border-radius: 14px; margin: 14px 0; }
+
+  /* Botones: más cómodos */
+  button { padding: 11px 22px; font-size: 14px; }
+
+  /* Títulos */
+  h2 { font-size: 20px; }
+  h3 { font-size: 16px; }
+
+  /* ──────── LOGIN ──────── */
+  #login .logo { margin-top: 80px; }
+  #login .logo h1 { font-size: 56px; }
+  #login .card { max-width: 420px; margin: 24px auto; }
+  #login .card input { max-width: none; }
+  #login .card button { width: 100%; margin: 8px 0 0; }
+
+  /* ──────── PANEL ──────── */
+  #panel h2 { font-size: 22px; padding-top: 8px; margin-bottom: 6px; }
+  #panel .grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    max-width: 960px;
+  }
+  .modulo { padding: 28px 16px; font-size: 14px; }
+
+  /* ──────── SELECCIÓN PROTOCOLO ──────── */
+  #seleccionProtocolo .grid {
+    grid-template-columns: repeat(2, 1fr);
+    max-width: 560px;
+  }
+
+  /* ──────── BODEGA MENÚ ──────── */
+  #bodega .grid {
+    grid-template-columns: repeat(3, 1fr);
+    max-width: 760px;
+  }
+
+  /* ──────── FORMULARIOS: etiqueta + campo en fila ──────── */
+  /* Aplica sólo a las secciones de datos generales */
+  #datos .card,
+  #dielectrico .card,
+  #carbonesDatos .card,
+  #ventiladorDatos .card,
+  #bodega-registrar .card,
+  #bodega-entregar .card,
+  #bodega-devolver .card {
+    display: grid;
+    grid-template-columns: 170px 1fr;
+    column-gap: 24px;
+    align-items: center;
+    row-gap: 0;
+  }
+
+  /* Etiquetas → columna izquierda */
+  #datos .card > label,
+  #dielectrico .card > label,
+  #carbonesDatos .card > label,
+  #ventiladorDatos .card > label,
+  #bodega-registrar .card > label,
+  #bodega-entregar .card > label,
+  #bodega-devolver .card > label {
+    grid-column: 1;
+    font-weight: 600;
+    font-size: 13px;
+    margin: 0;
+    color: #374151;
+  }
+
+  /* Campos → columna derecha */
+  #datos .card > input,          #datos .card > select,          #datos .card > textarea,
+  #dielectrico .card > input,    #dielectrico .card > select,    #dielectrico .card > textarea,
+  #carbonesDatos .card > input,  #carbonesDatos .card > select,  #carbonesDatos .card > textarea,
+  #ventiladorDatos .card > input,#ventiladorDatos .card > select,#ventiladorDatos .card > textarea,
+  #bodega-registrar .card > input,#bodega-registrar .card > select,#bodega-registrar .card > textarea,
+  #bodega-entregar .card > input, #bodega-entregar .card > select, #bodega-entregar .card > textarea,
+  #bodega-devolver .card > input, #bodega-devolver .card > select, #bodega-devolver .card > textarea {
+    grid-column: 2;
+    max-width: none;
+    margin: 3px 0 8px;
+  }
+
+  /* Ancho completo: títulos, divs, botones, etc. */
+  #datos .card > h1,          #datos .card > h2,          #datos .card > h3,
+  #datos .card > div,         #datos .card > button,      #datos .card > br,
+  #dielectrico .card > h1,    #dielectrico .card > h2,    #dielectrico .card > h3,
+  #dielectrico .card > div,   #dielectrico .card > button,#dielectrico .card > br,
+  #carbonesDatos .card > h1,  #carbonesDatos .card > h2,  #carbonesDatos .card > h3,
+  #carbonesDatos .card > div, #carbonesDatos .card > button,#carbonesDatos .card > br,
+  #ventiladorDatos .card > h1,#ventiladorDatos .card > h2,#ventiladorDatos .card > h3,
+  #ventiladorDatos .card > div,#ventiladorDatos .card > button,#ventiladorDatos .card > br,
+  #bodega-registrar .card > h1,#bodega-registrar .card > h2,#bodega-registrar .card > h3,
+  #bodega-registrar .card > div,#bodega-registrar .card > button,#bodega-registrar .card > br,
+  #bodega-registrar .card > label.boton-foto,
+  #bodega-entregar .card > h1, #bodega-entregar .card > h2, #bodega-entregar .card > h3,
+  #bodega-entregar .card > div,#bodega-entregar .card > button,#bodega-entregar .card > br,
+  #bodega-devolver .card > h1, #bodega-devolver .card > h2, #bodega-devolver .card > h3,
+  #bodega-devolver .card > div,#bodega-devolver .card > button,#bodega-devolver .card > br {
+    grid-column: 1 / -1;
+  }
+
+  /* Grupo botones (después de etiqueta) → columna derecha */
+  #carbonesDatos .card > .grupo-botones { grid-column: 2; }
+
+  /* ──────── TABLAS ──────── */
+  table { font-size: 13px; }
+  th, td { padding: 9px 12px; }
+  td input { padding: 8px; font-size: 12px; margin: 0; }
+
+  /* ──────── POSICIONES: 4 en fila ──────── */
+  .posiciones { grid-template-columns: repeat(4, 1fr); }
+
+  /* ──────── NAV BOTONES ──────── */
+  .nav button { padding: 11px 18px; }
+
+  /* ──────── BODEGA: contenedores de lista como bloque normal ──────── */
+  #bodega-inventario .card,
+  #bodega-reporte .card { display: block; }
 }

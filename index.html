@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>AYCA Smart Maintenance</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0b3158">
   <link rel="stylesheet" href="css/styles.css">
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -13,6 +15,28 @@
 <body>
 <div class="app">
 
+<!-- ═══ SIDEBAR ESCRITORIO (≥ 768px) ═══ -->
+<aside class="sidebar-desktop">
+  <div class="sidebar-logo">
+    <span class="s-icon">⚙️</span>
+    <span class="s-title">AYCA</span>
+    <span class="s-sub">Smart Maintenance</span>
+  </div>
+
+  <div id="sidebarNav"></div>
+
+  <div style="flex:1"></div>
+  <div class="sidebar-item" onclick="cerrarSesion()" style="border-top:1px solid rgba(255,255,255,0.1);margin-top:0">
+    <span class="si-icon">🔒</span> Cerrar sesión
+  </div>
+</aside>
+
+<!-- Barra de estado de red — siempre visible -->
+<div id="syncBar" style="position:sticky;top:0;z-index:1000;padding:5px 14px;font-size:11px;font-weight:bold;display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #bbf7d0;background:#f0fdf4">
+  <span id="syncTxt" style="color:#166534">🟢 En línea</span>
+  <span id="syncBadge" style="display:none;background:#dc2626;color:white;padding:2px 8px;border-radius:99px;font-size:10px"></span>
+</div>
+
 <section id="login" class="pantalla activa">
   <div class="logo">
     <h1>⚙️ AYCA</h1>
@@ -21,27 +45,37 @@
 
   <div class="card">
     <h2>AYCA Smart Maintenance</h2>
-    <label>Usuario</label>
-    <input id="usuario" value="Daniel">
+    <label>Correo</label>
+    <input id="authEmail" type="email" placeholder="tucorreo@ayca.cl" autocomplete="username">
 
     <label>Contraseña</label>
-    <input type="password" value="1234">
+    <input id="authPass" type="password" placeholder="Contraseña" autocomplete="current-password">
 
-    <button onclick="mostrar('panel')">INICIAR SESIÓN</button>
+    <button id="btnLogin" onclick="iniciarSesion()">INICIAR SESIÓN</button>
+    <p id="authError" style="color:#dc2626;font-size:13px;margin:8px 0 0;display:none"></p>
   </div>
 </section>
 
 <section id="panel" class="pantalla">
-  <div class="topbar">☰ AYCA Smart Maintenance</div>
-  <h2>Bienvenido, Técnico</h2>
+  <div class="topbar" style="display:flex;justify-content:space-between;align-items:center">
+    <span>☰ AYCA Smart Maintenance</span>
+    <span onclick="cerrarSesion()" style="cursor:pointer;font-size:13px;font-weight:normal">Cerrar sesión ⏻</span>
+  </div>
+  <h2 id="saludoUsuario">Bienvenido</h2>
 
-  <div class="grid">
-    <div class="modulo" onclick="mostrar('seleccionProtocolo')">📋<br><b>Nuevo Protocolo</b></div>
-    <div class="modulo" onclick="mostrar('protocolos')">📑<br><b>Protocolos</b></div>
-    <div class="modulo">🕘<br><b>Historial</b></div>
-    <div class="modulo">⚙️<br><b>Motores</b></div>
-    <div class="modulo" onclick="mostrar('herramientas')">🛠️<br><b>Herramientas</b></div>
-    <div class="modulo">🔄<br><b>Sincronización</b></div>
+  <div id="panelInicio"></div>
+
+  <div class="grid" id="menuGrid"></div>
+</section>
+
+<section id="provisional" class="pantalla">
+  <div class="topbar">Módulo en preparación</div>
+  <div class="card">
+    <h2 id="prov-titulo">Módulo</h2>
+    <p id="prov-rol" style="color:#6b7280;font-size:13px"></p>
+    <p id="prov-desc"></p>
+    <p style="font-weight:bold;color:#d97706">🚧 Módulo en preparación</p>
+    <button class="btn-gris" onclick="mostrar('panel')">⬅️ Volver</button>
   </div>
 </section>
 
@@ -52,8 +86,10 @@
     <h2>Seleccione tipo de protocolo</h2>
 
     <div class="grid">
-      <div class="modulo" onclick="nuevoProtocolo()">📐<br><b>Control Dimensional</b></div>
+      <div class="modulo" onclick="nuevoProtocolo()">📐<br><b>Entrehierro y Centro Magnético</b></div>
       <div class="modulo" onclick="nuevoDielectrico()">⚡<br><b>Mediciones Dieléctricas</b></div>
+      <div class="modulo" onclick="nuevoCarbones()">🪨<br><b>Carbones</b></div>
+      <div class="modulo" onclick="nuevoVentilador()">🌀<br><b>Ventilador</b></div>
     </div>
 
     <br>
@@ -92,8 +128,40 @@
       <option>LUMBRERA</option>
     </select>
 
-    <label>Equipo a probar</label>
+    <label>Equipo</label>
     <input type="text" id="equipoDiel" placeholder="Ej: Motor SAG MB01, Motor Bolas...">
+
+    <label>Tensión nominal [kV]</label>
+    <input type="number" step="any" id="kvNominalDiel" placeholder="Ej: 4.16, 6.6, 13.8...">
+
+    <label>Faena</label>
+    <select id="faenaDiel">
+      <option>Andina</option>
+      <option>El Teniente</option>
+      <option>El Salvador</option>
+      <option>Chuquicamata</option>
+      <option>Ministro Hales</option>
+      <option>Sierra Gorda</option>
+      <option>Caserones</option>
+      <option>Los Bronces</option>
+    </select>
+
+    <label>Área</label>
+    <select id="areaDiel">
+      <option>Molienda</option>
+      <option>Chancado</option>
+      <option>Concentradora</option>
+      <option>Salas Eléctricas</option>
+    </select>
+
+    <label>Evento de Mantención</label>
+    <input type="text" id="eventoDiel" placeholder="Ej: PM-2024-01, Mantención Mayor...">
+
+    <label>Fecha</label>
+    <input type="date" id="fechaDiel">
+
+    <label>Técnico Responsable</label>
+    <input type="text" id="tecnicoDiel" placeholder="Nombre del técnico">
 
     <div class="nav">
       <button class="btn-gris" onclick="mostrar('seleccionProtocolo')">⬅️ Volver</button>
@@ -122,7 +190,8 @@
       </div>
       <div>
         <label style="font-size:12px">V. Prueba [V]</label>
-        <input type="number" id="est1_vprueba" value="1000">
+        <input type="number" id="est1_vprueba" value="2500" oninput="avisoTensionEst1()">
+        <div id="est1_vaviso" style="font-size:9px;line-height:1.2;margin-top:2px"></div>
       </div>
       <div>
         <label style="font-size:12px">T. Bobinado [°C]</label>
@@ -233,6 +302,7 @@
     </div>
 
     <!-- Gráfico PRE vs POST -->
+    <div id="est1_irmin" style="font-size:12px;font-weight:bold;text-align:center;padding:8px;border-radius:8px;margin:0 0 10px;background:#f1f5f9;color:#374151">IR @1min: —</div>
     <button onclick="dibujarGraficoIP()" style="width:100%;margin:0 0 8px;background:#1d4ed8">📊 Ver Gráfico PRE vs POST</button>
     <canvas id="graficoIP" width="300" height="210" style="display:none;width:100%;border:1px solid #e2e8f0;border-radius:8px;margin-bottom:14px"></canvas>
 
@@ -246,17 +316,18 @@
       <div></div>
       <div>
         <label style="font-size:12px">L1-L2 [mΩ]</label>
-        <input type="number" step="any" id="est1_l12">
+        <input type="number" step="any" id="est1_l12" oninput="calcularDesbalanceEst1()">
       </div>
       <div>
         <label style="font-size:12px">L1-L3 [mΩ]</label>
-        <input type="number" step="any" id="est1_l13">
+        <input type="number" step="any" id="est1_l13" oninput="calcularDesbalanceEst1()">
       </div>
       <div>
-        <label style="font-size:12px">L2-L1 [mΩ]</label>
-        <input type="number" step="any" id="est1_l21">
+        <label style="font-size:12px">L2-L3 [mΩ]</label>
+        <input type="number" step="any" id="est1_l21" oninput="calcularDesbalanceEst1()">
       </div>
     </div>
+    <div id="est1_desb" style="font-size:12px;font-weight:bold;text-align:center;padding:8px;border-radius:8px;margin:8px 0 0;background:#f1f5f9;color:#374151">Desbalance entre fases: —</div>
 
     <label style="margin-top:10px">Observaciones</label>
     <textarea id="est1_obs" rows="3"></textarea>
@@ -266,7 +337,8 @@
       <button onclick="guardarDielectricoNube()" style="flex:1;background:#16a34a">💾 Guardar Protocolo</button>
       <button onclick="generarPDFDielectrico()" style="flex:1;background:#dc2626">📄 Generar PDF</button>
     </div>
-    <button onclick="generarReporteEntrega()" style="width:100%;background:#7c3aed;margin:2px 0 8px">📋 Reporte de Entrega de Equipo</button>
+    <button onclick="generarReporteEntrega()" style="width:100%;background:#7c3aed;margin:2px 0 2px">📋 Reporte de Entrega de Equipo</button>
+    <button onclick="generarEntregaDielectrico()" style="width:100%;background:#7c3aed;margin:2px 0 8px">📋 Protocolo de Entrega</button>
 
     <div class="nav">
       <button class="btn-gris" onclick="guardarEst1(); mostrar('dielectrico')">⬅️ Anterior</button>
@@ -285,7 +357,7 @@
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
       <div><label style="font-size:12px">Fecha</label><input type="date" id="est2_fecha"></div>
-      <div><label style="font-size:12px">V. Prueba [V]</label><input type="number" id="est2_vprueba" value="1000"></div>
+      <div><label style="font-size:12px">V. Prueba [V]</label><input type="number" id="est2_vprueba" value="2500" oninput="avisoTensionEst2()"><div id="est2_vaviso" style="font-size:9px;line-height:1.2;margin-top:2px"></div></div>
       <div><label style="font-size:12px">T. Bobinado [°C]</label><input type="number" id="est2_temp" oninput="actualizarKtEst2()" placeholder="ej: 40"></div>
       <div style="display:flex;flex-direction:column">
         <label style="font-size:12px">Factor Kt (→ 40°C)</label>
@@ -328,23 +400,26 @@
         <div id="est2_ip" style="font-size:36px;font-weight:bold;line-height:1">—</div>
       </div>
     </div>
+    <div id="est2_irmin" style="font-size:12px;font-weight:bold;text-align:center;padding:8px;border-radius:8px;margin:0 0 10px;background:#f1f5f9;color:#374151">IR @1min: —</div>
     <button onclick="dibujarGraficoIP2()" style="width:100%;margin:0 0 8px;background:#1d4ed8">📊 Ver Gráfico PRE vs POST</button>
     <canvas id="graficoIP2" width="300" height="210" style="display:none;width:100%;border:1px solid #e2e8f0;border-radius:8px;margin-bottom:14px"></canvas>
     <h3 style="margin:8px 0 6px">Resistencia Óhmica</h3>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
       <div><label style="font-size:12px">T. Medición [°C]</label><input type="number" id="est2_rohm_temp"></div>
       <div></div>
-      <div><label style="font-size:12px">L1-L2 [mΩ]</label><input type="number" step="any" id="est2_l12"></div>
-      <div><label style="font-size:12px">L1-L3 [mΩ]</label><input type="number" step="any" id="est2_l13"></div>
-      <div><label style="font-size:12px">L2-L3 [mΩ]</label><input type="number" step="any" id="est2_l21"></div>
+      <div><label style="font-size:12px">L1-L2 [mΩ]</label><input type="number" step="any" id="est2_l12" oninput="calcularDesbalanceEst2()"></div>
+      <div><label style="font-size:12px">L1-L3 [mΩ]</label><input type="number" step="any" id="est2_l13" oninput="calcularDesbalanceEst2()"></div>
+      <div><label style="font-size:12px">L2-L3 [mΩ]</label><input type="number" step="any" id="est2_l21" oninput="calcularDesbalanceEst2()"></div>
     </div>
+    <div id="est2_desb" style="font-size:12px;font-weight:bold;text-align:center;padding:8px;border-radius:8px;margin:8px 0 0;background:#f1f5f9;color:#374151">Desbalance entre fases: —</div>
     <label style="margin-top:10px">Observaciones</label>
     <textarea id="est2_obs" rows="3"></textarea>
     <div style="display:flex;gap:8px;margin:14px 0 4px">
       <button onclick="guardarDielectricoNube()" style="flex:1;background:#16a34a">💾 Guardar Protocolo</button>
       <button onclick="generarPDFDielectrico()" style="flex:1;background:#dc2626">📄 Generar PDF</button>
     </div>
-    <button onclick="generarReporteEntrega()" style="width:100%;background:#7c3aed;margin:2px 0 8px">📋 Reporte de Entrega de Equipo</button>
+    <button onclick="generarReporteEntrega()" style="width:100%;background:#7c3aed;margin:2px 0 2px">📋 Reporte de Entrega de Equipo</button>
+    <button onclick="generarEntregaDielectrico()" style="width:100%;background:#7c3aed;margin:2px 0 8px">📋 Protocolo de Entrega</button>
     <div class="nav">
       <button class="btn-gris" onclick="guardarEst2(); mostrar('estator1')">⬅️ Anterior</button>
       <button class="btn-verde" onclick="guardarEst2(); mostrar('rotorDiel')">Siguiente ➜</button>
@@ -418,6 +493,7 @@
       <button onclick="guardarDielectricoNube()" style="flex:1;background:#16a34a">💾 Guardar Protocolo</button>
       <button onclick="generarReporteEntrega()" style="flex:1;background:#7c3aed">📋 Reporte de Entrega</button>
     </div>
+    <button onclick="generarEntregaDielectrico()" style="width:100%;background:#7c3aed;margin:2px 0 8px">📋 Protocolo de Entrega</button>
     <div class="nav">
       <button class="btn-gris" onclick="guardarRotor(); mostrar('estator2')">⬅️ Anterior</button>
       <button class="btn-verde" onclick="guardarRotor(); mostrar('panel')">Finalizar ✓</button>
@@ -437,14 +513,22 @@
 </section>
 
 <section id="datos" class="pantalla">
-  <div class="topbar">Datos Generales</div>
+  <div class="topbar">Entrehierro y Centro Magnético — Datos Generales</div>
 
   <div class="card">
-    <label>N° Protocolo</label>
-    <input id="protocolo" readonly>
+    <h2>📐 Datos Generales de la Prueba</h2>
 
-    <label>Fecha</label>
-    <input id="fecha" type="date">
+    <label>N° Protocolo</label>
+    <div style="display:flex;gap:6px">
+      <input type="text" id="protocolo" placeholder="CD-250625-1430" style="flex:1">
+      <button onclick="generarProtocolo()" style="flex:0 0 auto;padding:10px 10px;font-size:12px;margin:6px 0 12px;white-space:nowrap">🔢 Generar</button>
+    </div>
+
+    <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 12px;margin:0 0 12px">
+      <p style="font-size:12px;color:#1d4ed8;margin:0 0 6px;font-weight:bold">¿Retomar un protocolo guardado?</p>
+      <p style="font-size:11px;color:#555;margin:0 0 8px">Ingresa el N° de protocolo en el campo superior y presiona Cargar.</p>
+      <button onclick="cargarProtocoloCD()" style="width:100%;background:#1d4ed8;font-size:13px">📂 Cargar Protocolo</button>
+    </div>
 
     <label>Cliente</label>
     <select id="cliente">
@@ -477,10 +561,21 @@
       <option>Salas Eléctricas</option>
     </select>
 
+    <label>Equipo</label>
+    <input type="text" id="equipo" placeholder="Ej: Motor SAG MB01">
+
+    <label>Evento de Mantención</label>
+    <input type="text" id="evento" placeholder="Ej: PM-2024-01, Mantención Mayor...">
+
+    <label>Fecha</label>
+    <input id="fecha" type="date">
+
+    <label>Técnico Responsable</label>
+    <input type="text" id="tecnico" placeholder="Nombre del técnico">
+
     <div class="nav">
-      <button class="btn-gris" onclick="mostrar('seleccionProtocolo')">ANTERIOR</button>
-      <button onclick="guardarAvance()">GUARDAR</button>
-      <button onclick="mostrar('herramientas')">SIGUIENTE</button>
+      <button class="btn-gris" onclick="mostrar('seleccionProtocolo')">⬅️ Volver</button>
+      <button class="btn-verde" onclick="guardarAvance();mostrar('herramientas')">Siguiente ➜</button>
     </div>
   </div>
 </section>
@@ -624,7 +719,27 @@
     <textarea rows="4"></textarea>
 
     <h3>Gráfico de Excentricidad</h3>
+
+    <div class="card" style="background:#f7f7f9;margin:8px 0;padding:10px">
+      <label style="font-weight:bold">Criterio de aceptación (entrehierro)</label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <div style="flex:1;min-width:88px">
+          <label>Nominal [mm]</label>
+          <input type="number" id="gapNominal" step="0.1" placeholder="ej. 15" oninput="dibujarGraficoExcentricidad()">
+        </div>
+        <div style="flex:1;min-width:88px">
+          <label>Alerta [±%]</label>
+          <input type="number" id="tolAlertaPct" step="0.5" value="5" oninput="dibujarGraficoExcentricidad()">
+        </div>
+        <div style="flex:1;min-width:88px">
+          <label>Rechazo [±%]</label>
+          <input type="number" id="tolFallaPct" step="0.5" value="10" oninput="dibujarGraficoExcentricidad()">
+        </div>
+      </div>
+    </div>
+
     <canvas id="graficoExcentricidad" width="320" height="320"></canvas>
+    <div id="veredictoEntrehierro" style="margin:8px 0;padding:8px;border-radius:6px;text-align:center;font-weight:bold;background:#eeeeee;color:#333333">Ingrese el entrehierro nominal para evaluar el criterio</div>
 
     <div class="nav">
       <button class="btn-gris" onclick="mostrar('medicion')">⬅️ ANTERIOR</button>
@@ -633,19 +748,828 @@
       <button class="btn-verde" onclick="generarPDF()">📄 GENERAR PDF</button>
       <button class="btn-gris" onclick="mostrar('panel')">🏠 VOLVER AL PANEL</button>
     </div>
+    <button onclick="generarEntregaCD()" style="width:100%;background:#7c3aed;margin:4px 0 2px">📋 Protocolo de Entrega</button>
   </div>
 </section>
+
+<!-- ===================== PROTOCOLO CARBONES ===================== -->
+
+<section id="carbonesDatos" class="pantalla">
+  <div class="topbar">Protocolo Carbones — Datos Generales</div>
+  <div class="card">
+    <h2>🪨 Datos Generales de la Prueba</h2>
+
+    <label>N° Protocolo</label>
+    <div style="display:flex;gap:6px">
+      <input type="text" id="carb_numProtocolo" placeholder="CB-250625-1430" style="flex:1">
+      <button onclick="generarNumProtocoloCarb()" style="flex:0 0 auto;padding:10px 10px;font-size:12px;margin:6px 0 12px;white-space:nowrap">🔢 Generar</button>
+    </div>
+
+    <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 12px;margin:0 0 12px">
+      <p style="font-size:12px;color:#1d4ed8;margin:0 0 6px;font-weight:bold">¿Continuar un protocolo guardado?</p>
+      <p style="font-size:11px;color:#555;margin:0 0 8px">Ingresa el N° del protocolo ya guardado y presiona Cargar Protocolo.</p>
+      <button onclick="cargarCarbonesNube()" style="width:100%;background:#1d4ed8;font-size:13px">📂 Cargar Protocolo</button>
+    </div>
+
+    <label>Cliente</label>
+    <select id="carb_cliente">
+      <option>CODELCO</option>
+      <option>MLCC</option>
+      <option>SIERRA GORDA</option>
+      <option>CANDELARIA</option>
+      <option>ANGLO AMERICAN</option>
+      <option>KINROSS</option>
+      <option>LUMBRERA</option>
+    </select>
+
+    <label>Faena</label>
+    <select id="carb_faena">
+      <option>Andina</option>
+      <option>El Teniente</option>
+      <option>El Salvador</option>
+      <option>Chuquicamata</option>
+      <option>Ministro Hales</option>
+      <option>Sierra Gorda</option>
+      <option>Caserones</option>
+      <option>Los Bronces</option>
+    </select>
+
+    <label>Área</label>
+    <select id="carb_area">
+      <option>Molienda</option>
+      <option>Chancado</option>
+      <option>Concentradora</option>
+      <option>Salas Eléctricas</option>
+    </select>
+
+    <label>Equipo</label>
+    <input type="text" id="carb_equipo" placeholder="Ej: Motor SAG MB01">
+
+    <label>Evento de Mantención</label>
+    <input type="text" id="carb_evento" placeholder="Ej: PM-2024-01, Mantención Mayor...">
+
+    <label>Fecha</label>
+    <input type="date" id="carb_fecha">
+
+    <label>Técnico Responsable</label>
+    <input type="text" id="carb_tecnico" placeholder="Nombre del técnico">
+
+    <label>N° de carbones por lado</label>
+    <div class="grupo-botones" style="margin-bottom:4px">
+      <button class="btn-estado btn-numCarb" data-n="4" onclick="seleccionarNumCarbones(4)">4</button>
+      <button class="btn-estado btn-numCarb seleccionado" data-n="6" onclick="seleccionarNumCarbones(6)">6</button>
+      <button class="btn-estado btn-numCarb" data-n="8" onclick="seleccionarNumCarbones(8)">8</button>
+    </div>
+
+    <div style="display:flex;gap:8px;margin:10px 0 4px">
+      <button onclick="guardarAvanceCarbones()" style="flex:1;background:#16a34a">💾 Guardar</button>
+    </div>
+
+    <div class="nav" style="margin-top:8px">
+      <button class="btn-gris" onclick="mostrar('seleccionProtocolo')">⬅️ Volver</button>
+      <button class="btn-verde" onclick="irCarbonLargo()">Siguiente ➜</button>
+    </div>
+  </div>
+</section>
+
+<section id="carbonesLargo" class="pantalla">
+  <div class="topbar">Medición Largo de Carbones</div>
+  <div class="card">
+
+    <!-- Totales -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+      <div style="background:#fef9c3;border:1px solid #fde047;border-radius:8px;padding:10px;text-align:center">
+        <div style="font-size:11px;color:#713f12;font-weight:bold">Total reemplazados</div>
+        <div id="carb_totalRemp" style="font-size:28px;font-weight:bold;color:#92400e">0</div>
+      </div>
+      <div style="background:#dbeafe;border:1px solid #93c5fd;border-radius:8px;padding:10px;text-align:center">
+        <div style="font-size:11px;color:#1e3a8a;font-weight:bold">Total ajustados</div>
+        <div id="carb_totalAjus" style="font-size:28px;font-weight:bold;color:#1d4ed8">0</div>
+      </div>
+    </div>
+
+    <!-- Leyenda criterios -->
+    <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px;font-size:11px">
+      <span style="background:#dcfce7;color:#14532d;padding:2px 7px;border-radius:4px;font-weight:bold">OK</span>
+      <span style="background:#fecaca;color:#7f1d1d;padding:2px 7px;border-radius:4px;font-weight:bold">BM &lt;7mm</span>
+      <span style="background:#fef9c3;color:#78350f;padding:2px 7px;border-radius:4px;font-weight:bold">P 7–9mm</span>
+      <span style="background:#fecaca;color:#7f1d1d;padding:2px 7px;border-radius:4px;font-weight:bold">D Defectuoso</span>
+      <span style="background:#fef3c7;color:#92400e;padding:2px 7px;border-radius:4px;font-weight:bold">Alt en amarillo</span>
+    </div>
+    <p style="font-size:10px;color:#888;margin:0 0 10px">OK = Dentro de medida &nbsp;|&nbsp; BM = Bajo medida &lt;40 mm &nbsp;|&nbsp; P = Preventivo 40–43 mm &nbsp;|&nbsp; D = Defectuoso &nbsp;|&nbsp; Alt &lt;8 mm = Ajustar porta carbón</p>
+
+    <!-- LADO TAPA -->
+    <h3 style="margin:8px 0 4px;background:#0b3158;color:white;padding:6px 10px;border-radius:6px;font-size:13px">LADO TAPA</h3>
+    <div style="overflow-x:auto">
+      <table style="font-size:11px">
+        <colgroup><col style="width:22px"><col style="width:44px"><col><col style="width:50px"><col><col style="width:50px"></colgroup>
+        <tr style="background:#0b3158;color:white">
+          <th>#</th><th style="background:#b45309;color:white">Alt[mm]</th><th>L1[mm]</th><th>Crit</th><th>L2[mm]</th><th>Crit</th>
+        </tr>
+        <tr class="fila-lt-1"><td style="text-align:center;font-weight:bold">1</td><td style="background:#fef3c7"><input class="inp-alt" type="number" step="0.1" id="carb_lt_alt_1" value="8"></td><td><input type="number" step="0.1" id="carb_lt_l1_1" oninput="autoCriterioCarb(this,'carb_lt_c1_1')"></td><td><select class="sel-crit" id="carb_lt_c1_1" onchange="calcularTotalesCarbones();colorCriterio(this)"><option value="OK">OK</option><option value="BM">BM</option><option value="P">P</option><option value="D">D</option></select></td><td><input type="number" step="0.1" id="carb_lt_l2_1" oninput="autoCriterioCarb(this,'carb_lt_c2_1')"></td><td><select class="sel-crit" id="carb_lt_c2_1" onchange="calcularTotalesCarbones();colorCriterio(this)"><option value="OK">OK</option><option value="BM">BM</option><option value="P">P</option><option value="D">D</option></select></td></tr>
+        <tr class="fila-lt-2" style="background:#f8fafc"><td style="text-align:center;font-weight:bold">2</td><td style="background:#fef3c7"><input class="inp-alt" type="number" step="0.1" id="carb_lt_alt_2" value="8"></td><td><input type="number" step="0.1" id="carb_lt_l1_2" oninput="autoCriterioCarb(this,'carb_lt_c1_2')"></td><td><select class="sel-crit" id="carb_lt_c1_2" onchange="calcularTotalesCarbones();colorCriterio(this)"><option value="OK">OK</option><option value="BM">BM</option><option value="P">P</option><option value="D">D</option></select></td><td><input type="number" step="0.1" id="carb_lt_l2_2" oninput="autoCriterioCarb(this,'carb_lt_c2_2')"></td><td><select class="sel-crit" id="carb_lt_c2_2" onchange="calcularTotalesCarbones();colorCriterio(this)"><option value="OK">OK</option><option value="BM">BM</option><option value="P">P</option><option value="D">D</option></select></td></tr>
+        <tr class="fila-lt-3"><td style="text-align:center;font-weight:bold">3</td><td style="background:#fef3c7"><input class="inp-alt" type="number" step="0.1" id="carb_lt_alt_3" value="8"></td><td><input type="number" step="0.1" id="carb_lt_l1_3" oninput="autoCriterioCarb(this,'carb_lt_c1_3')"></td><td><select class="sel-crit" id="carb_lt_c1_3" onchange="calcularTotalesCarbones();colorCriterio(this)"><option value="OK">OK</option><option value="BM">BM</option><option value="P">P</option><option value="D">D</option></select></td><td><input type="number" step="0.1" id="carb_lt_l2_3" oninput="autoCriterioCarb(this,'carb_lt_c2_3')"></td><td><select class="sel-crit" id="carb_lt_c2_3" onchange="calcularTotalesCarbones();colorCriterio(this)"><option value="OK">OK</option><option value="BM">BM</option><option value="P">P</option><option value="D">D</option></select></td></tr>
+        <tr class="fila-lt-4" style="background:#f8fafc"><td style="text-align:center;font-weight:bold">4</td><td style="background:#fef3c7"><input class="inp-alt" type="number" step="0.1" id="carb_lt_alt_4" value="8"></td><td><input type="number" step="0.1" id="carb_lt_l1_4" oninput="autoCriterioCarb(this,'carb_lt_c1_4')"></td><td><select class="sel-crit" id="carb_lt_c1_4" onchange="calcularTotalesCarbones();colorCriterio(this)"><option value="OK">OK</option><option value="BM">BM</option><option value="P">P</option><option value="D">D</option></select></td><td><input type="number" step="0.1" id="carb_lt_l2_4" oninput="autoCriterioCarb(this,'carb_lt_c2_4')"></td><td><select class="sel-crit" id="carb_lt_c2_4" onchange="calcularTotalesCarbones();colorCriterio(this)"><option value="OK">OK</option><option value="BM">BM</option><option value="P">P</option><option value="D">D</option></select></td></tr>
+        <tr class="fila-lt-5"><td style="text-align:center;font-weight:bold">5</td><td style="background:#fef3c7"><input class="inp-alt" type="number" step="0.1" id="carb_lt_alt_5" value="8"></td><td><input type="number" step="0.1" id="carb_lt_l1_5" oninput="autoCriterioCarb(this,'carb_lt_c1_5')"></td><td><select class="sel-crit" id="carb_lt_c1_5" onchange="calcularTotalesCarbones();colorCriterio(this)"><option value="OK">OK</option><option value="BM">BM</option><option value="P">P</option><option value="D">D</option></select></td><td><input type="number" step="0.1" id="carb_lt_l2_5" oninput="autoCriterioCarb(this,'carb_lt_c2_5')"></td><td><select class="sel-crit" id="carb_lt_c2_5" onchange="calcularTotalesCarbones();colorCriterio(this)"><option value="OK">OK</option><option value="BM">BM</option><option value="P">P</option><option value="D">D</option></select></td></tr>
+        <tr class="fila-lt-6" style="background:#f8fafc"><td style="text-align:center;font-weight:bold">6</td><td style="background:#fef3c7"><input class="inp-alt" type="number" step="0.1" id="carb_lt_alt_6" value="8"></td><td><input type="number" step="0.1" id="carb_lt_l1_6" oninput="autoCriterioCarb(this,'carb_lt_c1_6')"></td><td><select class="sel-crit" id="carb_lt_c1_6" onchange="calcularTotalesCarbones();colorCriterio(this)"><option value="OK">OK</option><option value="BM">BM</option><option value="P">P</option><option value="D">D</option></select></td><td><input type="number" step="0.1" id="carb_lt_l2_6" oninput="autoCriterioCarb(this,'carb_lt_c2_6')"></td><td><select class="sel-crit" id="carb_lt_c2_6" onchange="calcularTotalesCarbones();colorCriterio(this)"><option value="OK">OK</option><option value="BM">BM</option><option value="P">P</option><option value="D">D</option></select></td></tr>
+        <tr class="fila-lt-7"><td style="text-align:center;font-weight:bold">7</td><td style="background:#fef3c7"><input class="inp-alt" type="number" step="0.1" id="carb_lt_alt_7" value="8"></td><td><input type="number" step="0.1" id="carb_lt_l1_7" oninput="autoCriterioCarb(this,'carb_lt_c1_7')"></td><td><select class="sel-crit" id="carb_lt_c1_7" onchange="calcularTotalesCarbones();colorCriterio(this)"><option value="OK">OK</option><option value="BM">BM</option><option value="P">P</option><option value="D">D</option></select></td><td><input type="number" step="0.1" id="carb_lt_l2_7" oninput="autoCriterioCarb(this,'carb_lt_c2_7')"></td><td><select class="sel-crit" id="carb_lt_c2_7" onchange="calcularTotalesCarbones();colorCriterio(this)"><option value="OK">OK</option><option value="BM">BM</option><option value="P">P</option><option value="D">D</option></select></td></tr>
+        <tr class="fila-lt-8" style="background:#f8fafc"><td style="text-align:center;font-weight:bold">8</td><td style="background:#fef3c7"><input class="inp-alt" type="number" step="0.1" id="carb_lt_alt_8" value="8"></td><td><input type="number" step="0.1" id="carb_lt_l1_8" oninput="autoCriterioCarb(this,'carb_lt_c1_8')"></td><td><select class="sel-crit" id="carb_lt_c1_8" onchange="calcularTotalesCarbones();colorCriterio(this)"><option value="OK">OK</option><option value="BM">BM</option><option value="P">P</option><option value="D">D</option></select></td><td><input type="number" step="0.1" id="carb_lt_l2_8" oninput="autoCriterioCarb(this,'carb_lt_c2_8')"></td><td><select class="sel-crit" id="carb_lt_c2_8" onchange="calcularTotalesCarbones();colorCriterio(this)"><option value="OK">OK</option><option value="BM">BM</option><option value="P">P</option><option value="D">D</option></select></td></tr>
+      </table>
+    </div>
+
+    <!-- TIERRA -->
+    <h3 style="margin:12px 0 4px;background:#374151;color:white;padding:6px 10px;border-radius:6px;font-size:13px">TIERRA (Referencia)</h3>
+    <div style="overflow-x:auto">
+      <table style="font-size:11px">
+        <colgroup><col style="width:22px"><col style="width:44px"><col><col style="width:50px"><col><col style="width:50px"></colgroup>
+        <tr style="background:#374151;color:white">
+          <th>#</th><th style="background:#b45309;color:white">Alt[mm]</th><th>L1[mm]</th><th>Crit</th><th>L2[mm]</th><th>Crit</th>
+        </tr>
+        <tr><td style="text-align:center;font-weight:bold">1</td><td style="background:#fef3c7"><input class="inp-alt" type="number" step="0.1" id="carb_tier_alt_1" value="8"></td><td><input type="number" step="0.1" id="carb_tier_l1_1" oninput="autoCriterioCarb(this,'carb_tier_c1_1')"></td><td><select class="sel-crit" id="carb_tier_c1_1" onchange="colorCriterio(this)"><option value="OK">OK</option><option value="BM">BM</option><option value="P">P</option><option value="D">D</option></select></td><td><input type="number" step="0.1" id="carb_tier_l2_1" oninput="autoCriterioCarb(this,'carb_tier_c2_1')"></td><td><select class="sel-crit" id="carb_tier_c2_1" onchange="colorCriterio(this)"><option value="OK">OK</option><option value="BM">BM</option><option value="P">P</option><option value="D">D</option></select></td></tr>
+        <tr style="background:#f8fafc"><td style="text-align:center;font-weight:bold">2</td><td style="background:#fef3c7"><input class="inp-alt" type="number" step="0.1" id="carb_tier_alt_2" value="8"></td><td><input type="number" step="0.1" id="carb_tier_l1_2" oninput="autoCriterioCarb(this,'carb_tier_c1_2')"></td><td><select class="sel-crit" id="carb_tier_c1_2" onchange="colorCriterio(this)"><option value="OK">OK</option><option value="BM">BM</option><option value="P">P</option><option value="D">D</option></select></td><td><input type="number" step="0.1" id="carb_tier_l2_2" oninput="autoCriterioCarb(this,'carb_tier_c2_2')"></td><td><select class="sel-crit" id="carb_tier_c2_2" onchange="colorCriterio(this)"><option value="OK">OK</option><option value="BM">BM</option><option value="P">P</option><option value="D">D</option></select></td></tr>
+      </table>
+    </div>
+
+    <!-- LADO BOBINA -->
+    <h3 style="margin:12px 0 4px;background:#0b3158;color:white;padding:6px 10px;border-radius:6px;font-size:13px">LADO BOBINA</h3>
+    <div style="overflow-x:auto">
+      <table style="font-size:11px">
+        <colgroup><col style="width:22px"><col style="width:44px"><col><col style="width:50px"><col><col style="width:50px"></colgroup>
+        <tr style="background:#0b3158;color:white">
+          <th>#</th><th style="background:#b45309;color:white">Alt[mm]</th><th>L1[mm]</th><th>Crit</th><th>L2[mm]</th><th>Crit</th>
+        </tr>
+        <tr class="fila-lb-1"><td style="text-align:center;font-weight:bold">1</td><td style="background:#fef3c7"><input class="inp-alt" type="number" step="0.1" id="carb_lb_alt_1" value="8"></td><td><input type="number" step="0.1" id="carb_lb_l1_1" oninput="autoCriterioCarb(this,'carb_lb_c1_1')"></td><td><select class="sel-crit" id="carb_lb_c1_1" onchange="calcularTotalesCarbones();colorCriterio(this)"><option value="OK">OK</option><option value="BM">BM</option><option value="P">P</option><option value="D">D</option></select></td><td><input type="number" step="0.1" id="carb_lb_l2_1" oninput="autoCriterioCarb(this,'carb_lb_c2_1')"></td><td><select class="sel-crit" id="carb_lb_c2_1" onchange="calcularTotalesCarbones();colorCriterio(this)"><option value="OK">OK</option><option value="BM">BM</option><option value="P">P</option><option value="D">D</option></select></td></tr>
+        <tr class="fila-lb-2" style="background:#f8fafc"><td style="text-align:center;font-weight:bold">2</td><td style="background:#fef3c7"><input class="inp-alt" type="number" step="0.1" id="carb_lb_alt_2" value="8"></td><td><input type="number" step="0.1" id="carb_lb_l1_2" oninput="autoCriterioCarb(this,'carb_lb_c1_2')"></td><td><select class="sel-crit" id="carb_lb_c1_2" onchange="calcularTotalesCarbones();colorCriterio(this)"><option value="OK">OK</option><option value="BM">BM</option><option value="P">P</option><option value="D">D</option></select></td><td><input type="number" step="0.1" id="carb_lb_l2_2" oninput="autoCriterioCarb(this,'carb_lb_c2_2')"></td><td><select class="sel-crit" id="carb_lb_c2_2" onchange="calcularTotalesCarbones();colorCriterio(this)"><option value="OK">OK</option><option value="BM">BM</option><option value="P">P</option><option value="D">D</option></select></td></tr>
+        <tr class="fila-lb-3"><td style="text-align:center;font-weight:bold">3</td><td style="background:#fef3c7"><input class="inp-alt" type="number" step="0.1" id="carb_lb_alt_3" value="8"></td><td><input type="number" step="0.1" id="carb_lb_l1_3" oninput="autoCriterioCarb(this,'carb_lb_c1_3')"></td><td><select class="sel-crit" id="carb_lb_c1_3" onchange="calcularTotalesCarbones();colorCriterio(this)"><option value="OK">OK</option><option value="BM">BM</option><option value="P">P</option><option value="D">D</option></select></td><td><input type="number" step="0.1" id="carb_lb_l2_3" oninput="autoCriterioCarb(this,'carb_lb_c2_3')"></td><td><select class="sel-crit" id="carb_lb_c2_3" onchange="calcularTotalesCarbones();colorCriterio(this)"><option value="OK">OK</option><option value="BM">BM</option><option value="P">P</option><option value="D">D</option></select></td></tr>
+        <tr class="fila-lb-4" style="background:#f8fafc"><td style="text-align:center;font-weight:bold">4</td><td style="background:#fef3c7"><input class="inp-alt" type="number" step="0.1" id="carb_lb_alt_4" value="8"></td><td><input type="number" step="0.1" id="carb_lb_l1_4" oninput="autoCriterioCarb(this,'carb_lb_c1_4')"></td><td><select class="sel-crit" id="carb_lb_c1_4" onchange="calcularTotalesCarbones();colorCriterio(this)"><option value="OK">OK</option><option value="BM">BM</option><option value="P">P</option><option value="D">D</option></select></td><td><input type="number" step="0.1" id="carb_lb_l2_4" oninput="autoCriterioCarb(this,'carb_lb_c2_4')"></td><td><select class="sel-crit" id="carb_lb_c2_4" onchange="calcularTotalesCarbones();colorCriterio(this)"><option value="OK">OK</option><option value="BM">BM</option><option value="P">P</option><option value="D">D</option></select></td></tr>
+        <tr class="fila-lb-5"><td style="text-align:center;font-weight:bold">5</td><td style="background:#fef3c7"><input class="inp-alt" type="number" step="0.1" id="carb_lb_alt_5" value="8"></td><td><input type="number" step="0.1" id="carb_lb_l1_5" oninput="autoCriterioCarb(this,'carb_lb_c1_5')"></td><td><select class="sel-crit" id="carb_lb_c1_5" onchange="calcularTotalesCarbones();colorCriterio(this)"><option value="OK">OK</option><option value="BM">BM</option><option value="P">P</option><option value="D">D</option></select></td><td><input type="number" step="0.1" id="carb_lb_l2_5" oninput="autoCriterioCarb(this,'carb_lb_c2_5')"></td><td><select class="sel-crit" id="carb_lb_c2_5" onchange="calcularTotalesCarbones();colorCriterio(this)"><option value="OK">OK</option><option value="BM">BM</option><option value="P">P</option><option value="D">D</option></select></td></tr>
+        <tr class="fila-lb-6" style="background:#f8fafc"><td style="text-align:center;font-weight:bold">6</td><td style="background:#fef3c7"><input class="inp-alt" type="number" step="0.1" id="carb_lb_alt_6" value="8"></td><td><input type="number" step="0.1" id="carb_lb_l1_6" oninput="autoCriterioCarb(this,'carb_lb_c1_6')"></td><td><select class="sel-crit" id="carb_lb_c1_6" onchange="calcularTotalesCarbones();colorCriterio(this)"><option value="OK">OK</option><option value="BM">BM</option><option value="P">P</option><option value="D">D</option></select></td><td><input type="number" step="0.1" id="carb_lb_l2_6" oninput="autoCriterioCarb(this,'carb_lb_c2_6')"></td><td><select class="sel-crit" id="carb_lb_c2_6" onchange="calcularTotalesCarbones();colorCriterio(this)"><option value="OK">OK</option><option value="BM">BM</option><option value="P">P</option><option value="D">D</option></select></td></tr>
+        <tr class="fila-lb-7"><td style="text-align:center;font-weight:bold">7</td><td style="background:#fef3c7"><input class="inp-alt" type="number" step="0.1" id="carb_lb_alt_7" value="8"></td><td><input type="number" step="0.1" id="carb_lb_l1_7" oninput="autoCriterioCarb(this,'carb_lb_c1_7')"></td><td><select class="sel-crit" id="carb_lb_c1_7" onchange="calcularTotalesCarbones();colorCriterio(this)"><option value="OK">OK</option><option value="BM">BM</option><option value="P">P</option><option value="D">D</option></select></td><td><input type="number" step="0.1" id="carb_lb_l2_7" oninput="autoCriterioCarb(this,'carb_lb_c2_7')"></td><td><select class="sel-crit" id="carb_lb_c2_7" onchange="calcularTotalesCarbones();colorCriterio(this)"><option value="OK">OK</option><option value="BM">BM</option><option value="P">P</option><option value="D">D</option></select></td></tr>
+        <tr class="fila-lb-8" style="background:#f8fafc"><td style="text-align:center;font-weight:bold">8</td><td style="background:#fef3c7"><input class="inp-alt" type="number" step="0.1" id="carb_lb_alt_8" value="8"></td><td><input type="number" step="0.1" id="carb_lb_l1_8" oninput="autoCriterioCarb(this,'carb_lb_c1_8')"></td><td><select class="sel-crit" id="carb_lb_c1_8" onchange="calcularTotalesCarbones();colorCriterio(this)"><option value="OK">OK</option><option value="BM">BM</option><option value="P">P</option><option value="D">D</option></select></td><td><input type="number" step="0.1" id="carb_lb_l2_8" oninput="autoCriterioCarb(this,'carb_lb_c2_8')"></td><td><select class="sel-crit" id="carb_lb_c2_8" onchange="calcularTotalesCarbones();colorCriterio(this)"><option value="OK">OK</option><option value="BM">BM</option><option value="P">P</option><option value="D">D</option></select></td></tr>
+      </table>
+    </div>
+
+    <div style="display:flex;gap:8px;margin:10px 0 4px">
+      <button onclick="guardarAvanceCarbones()" style="flex:1;background:#16a34a">💾 Guardar</button>
+      <button onclick="generarPDFCarbones()" style="flex:1;background:#dc2626">📄 PDF Informe Final</button>
+    </div>
+    <button onclick="generarEntregaCarbones()" style="width:100%;background:#7c3aed;margin:2px 0 6px">📋 Protocolo de Entrega</button>
+
+    <div class="nav" style="margin-top:8px">
+      <button class="btn-gris" onclick="mostrar('carbonesDatos')">⬅️ Anterior</button>
+      <button class="btn-verde" onclick="irCarbonTension()">Siguiente ➜</button>
+    </div>
+  </div>
+</section>
+
+<section id="carbonesTension" class="pantalla">
+  <div class="topbar">Tensión de Resortes Porta Carbones</div>
+  <div class="card">
+
+    <!-- LADO TAPA -->
+    <h3 style="margin:0 0 4px;background:#0b3158;color:white;padding:6px 10px;border-radius:6px;font-size:13px">LADO TAPA — Tensión [N]</h3>
+    <div style="overflow-x:auto">
+      <table style="font-size:11px;min-width:240px">
+        <tr style="background:#0b3158;color:white">
+          <th style="width:22px">Pos</th>
+          <th>Res. A [N]</th>
+          <th>Res. B [N]</th>
+        </tr>
+        <tr class="fila-tt-1"><td style="text-align:center;font-weight:bold">1</td><td><input type="number" step="0.01" id="carb_tt_t1_1" placeholder="1"></td><td><input type="number" step="0.01" id="carb_tt_t2_1" placeholder="1.1"></td></tr>
+        <tr class="fila-tt-2" style="background:#f8fafc"><td style="text-align:center;font-weight:bold">2</td><td><input type="number" step="0.01" id="carb_tt_t1_2" placeholder="2"></td><td><input type="number" step="0.01" id="carb_tt_t2_2" placeholder="2.1"></td></tr>
+        <tr class="fila-tt-3"><td style="text-align:center;font-weight:bold">3</td><td><input type="number" step="0.01" id="carb_tt_t1_3" placeholder="3"></td><td><input type="number" step="0.01" id="carb_tt_t2_3" placeholder="3.1"></td></tr>
+        <tr class="fila-tt-4" style="background:#f8fafc"><td style="text-align:center;font-weight:bold">4</td><td><input type="number" step="0.01" id="carb_tt_t1_4" placeholder="4"></td><td><input type="number" step="0.01" id="carb_tt_t2_4" placeholder="4.1"></td></tr>
+        <tr class="fila-tt-5"><td style="text-align:center;font-weight:bold">5</td><td><input type="number" step="0.01" id="carb_tt_t1_5" placeholder="5"></td><td><input type="number" step="0.01" id="carb_tt_t2_5" placeholder="5.1"></td></tr>
+        <tr class="fila-tt-6" style="background:#f8fafc"><td style="text-align:center;font-weight:bold">6</td><td><input type="number" step="0.01" id="carb_tt_t1_6" placeholder="6"></td><td><input type="number" step="0.01" id="carb_tt_t2_6" placeholder="6.1"></td></tr>
+        <tr class="fila-tt-7"><td style="text-align:center;font-weight:bold">7</td><td><input type="number" step="0.01" id="carb_tt_t1_7" placeholder="7"></td><td><input type="number" step="0.01" id="carb_tt_t2_7" placeholder="7.1"></td></tr>
+        <tr class="fila-tt-8" style="background:#f8fafc"><td style="text-align:center;font-weight:bold">8</td><td><input type="number" step="0.01" id="carb_tt_t1_8" placeholder="8"></td><td><input type="number" step="0.01" id="carb_tt_t2_8" placeholder="8.1"></td></tr>
+      </table>
+    </div>
+
+    <!-- TIERRA -->
+    <h3 style="margin:12px 0 4px;background:#374151;color:white;padding:6px 10px;border-radius:6px;font-size:13px">TIERRA — Tensión [N]</h3>
+    <div style="overflow-x:auto">
+      <table style="font-size:11px;min-width:240px">
+        <tr style="background:#374151;color:white">
+          <th style="width:22px">Pos</th>
+          <th>Res. A [N]</th>
+          <th>Res. B [N]</th>
+        </tr>
+        <tr><td style="text-align:center;font-weight:bold">1</td><td><input type="number" step="0.01" id="carb_ttier_t1_1"></td><td><input type="number" step="0.01" id="carb_ttier_t2_1"></td></tr>
+        <tr style="background:#f8fafc"><td style="text-align:center;font-weight:bold">2</td><td><input type="number" step="0.01" id="carb_ttier_t1_2"></td><td><input type="number" step="0.01" id="carb_ttier_t2_2"></td></tr>
+      </table>
+    </div>
+
+    <!-- LADO BOBINA -->
+    <h3 style="margin:12px 0 4px;background:#0b3158;color:white;padding:6px 10px;border-radius:6px;font-size:13px">LADO BOBINA — Tensión [N]</h3>
+    <div style="overflow-x:auto">
+      <table style="font-size:11px;min-width:240px">
+        <tr style="background:#0b3158;color:white">
+          <th style="width:22px">Pos</th>
+          <th>Res. A [N]</th>
+          <th>Res. B [N]</th>
+        </tr>
+        <tr class="fila-tb-1"><td style="text-align:center;font-weight:bold">1</td><td><input type="number" step="0.01" id="carb_tb_t1_1" placeholder="1"></td><td><input type="number" step="0.01" id="carb_tb_t2_1" placeholder="1.1"></td></tr>
+        <tr class="fila-tb-2" style="background:#f8fafc"><td style="text-align:center;font-weight:bold">2</td><td><input type="number" step="0.01" id="carb_tb_t1_2" placeholder="2"></td><td><input type="number" step="0.01" id="carb_tb_t2_2" placeholder="2.1"></td></tr>
+        <tr class="fila-tb-3"><td style="text-align:center;font-weight:bold">3</td><td><input type="number" step="0.01" id="carb_tb_t1_3" placeholder="3"></td><td><input type="number" step="0.01" id="carb_tb_t2_3" placeholder="3.1"></td></tr>
+        <tr class="fila-tb-4" style="background:#f8fafc"><td style="text-align:center;font-weight:bold">4</td><td><input type="number" step="0.01" id="carb_tb_t1_4" placeholder="4"></td><td><input type="number" step="0.01" id="carb_tb_t2_4" placeholder="4.1"></td></tr>
+        <tr class="fila-tb-5"><td style="text-align:center;font-weight:bold">5</td><td><input type="number" step="0.01" id="carb_tb_t1_5" placeholder="5"></td><td><input type="number" step="0.01" id="carb_tb_t2_5" placeholder="5.1"></td></tr>
+        <tr class="fila-tb-6" style="background:#f8fafc"><td style="text-align:center;font-weight:bold">6</td><td><input type="number" step="0.01" id="carb_tb_t1_6" placeholder="6"></td><td><input type="number" step="0.01" id="carb_tb_t2_6" placeholder="6.1"></td></tr>
+        <tr class="fila-tb-7"><td style="text-align:center;font-weight:bold">7</td><td><input type="number" step="0.01" id="carb_tb_t1_7" placeholder="7"></td><td><input type="number" step="0.01" id="carb_tb_t2_7" placeholder="7.1"></td></tr>
+        <tr class="fila-tb-8" style="background:#f8fafc"><td style="text-align:center;font-weight:bold">8</td><td><input type="number" step="0.01" id="carb_tb_t1_8" placeholder="8"></td><td><input type="number" step="0.01" id="carb_tb_t2_8" placeholder="8.1"></td></tr>
+      </table>
+    </div>
+
+    <label style="margin-top:14px;font-weight:bold">Observaciones</label>
+    <textarea id="carb_observaciones" rows="3" placeholder="Observaciones generales del protocolo..."></textarea>
+
+    <div style="display:flex;gap:8px;margin-top:10px">
+      <button onclick="guardarCarbones()" style="flex:1;background:#16a34a">💾 Guardar</button>
+      <button onclick="generarPDFCarbones()" style="flex:1;background:#dc2626">📄 PDF Informe Final</button>
+    </div>
+    <button onclick="generarEntregaCarbones()" style="width:100%;background:#7c3aed;margin:4px 0 4px">📋 Protocolo de Entrega</button>
+
+    <div class="nav" style="margin-top:8px">
+      <button class="btn-gris" onclick="mostrar('carbonesLargo')">⬅️ Anterior</button>
+      <button class="btn-gris" onclick="mostrar('panel')">🏠 Panel</button>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== FIN CARBONES ===================== -->
+
+<!-- ===================== PROTOCOLO VENTILADOR ===================== -->
+
+<section id="ventiladorDatos" class="pantalla">
+  <div class="topbar">Protocolo Ventilador — Datos Generales</div>
+  <div class="card">
+    <h2>🌀 Datos Generales de la Prueba</h2>
+
+    <input type="hidden" id="vent_gerencia" value="Mantenimiento">
+
+    <label>N° Protocolo</label>
+    <div style="display:flex;gap:6px">
+      <input type="text" id="vent_numProtocolo" placeholder="MV-250625-1430" style="flex:1">
+      <button onclick="generarNumProtocoloVent()" style="flex:0 0 auto;padding:10px 10px;font-size:12px;margin:6px 0 12px;white-space:nowrap">🔢 Generar</button>
+    </div>
+
+    <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 12px;margin:0 0 12px">
+      <p style="font-size:12px;color:#1d4ed8;margin:0 0 6px;font-weight:bold">¿Continuar un protocolo guardado?</p>
+      <p style="font-size:11px;color:#555;margin:0 0 8px">Ingresa el N° del protocolo ya guardado y presiona Cargar Protocolo.</p>
+      <button onclick="cargarVentiladorNube()" style="width:100%;background:#1d4ed8;font-size:13px">📂 Cargar Protocolo</button>
+    </div>
+
+    <label>Cliente</label>
+    <select id="vent_cliente">
+      <option>CODELCO</option>
+      <option>MLCC</option>
+      <option>SIERRA GORDA</option>
+      <option>CANDELARIA</option>
+      <option>ANGLO AMERICAN</option>
+      <option>KINROSS</option>
+      <option>LUMBRERA</option>
+    </select>
+
+    <label>Faena</label>
+    <select id="vent_faena">
+      <option>Andina</option>
+      <option>El Teniente</option>
+      <option>El Salvador</option>
+      <option>Chuquicamata</option>
+      <option>Ministro Hales</option>
+      <option>Sierra Gorda</option>
+      <option>Caserones</option>
+      <option>Los Bronces</option>
+    </select>
+
+    <label>Área</label>
+    <select id="vent_area">
+      <option>Molienda</option>
+      <option>Chancado</option>
+      <option>Concentradora</option>
+      <option>Salas Eléctricas</option>
+    </select>
+
+    <label>Equipo</label>
+    <input id="vent_equipo" placeholder="Ej: Molino SAG">
+
+    <label>Evento de Mantención</label>
+    <input type="text" id="vent_evento" placeholder="Ej: PM-2024-01, Cambio de Ventilador...">
+
+    <label>Fecha</label>
+    <input type="date" id="vent_fecha">
+
+    <label>Técnico Responsable</label>
+    <input type="text" id="vent_tecnico" placeholder="Nombre del técnico">
+
+    <label>Ventilador N°</label>
+    <input id="vent_ventNum" placeholder="Ej: L22">
+
+    <input type="hidden" id="vent_lugar" value="">
+
+    <label>Trabajo a Ejecutar</label>
+    <textarea id="vent_trabajo" rows="2" placeholder="Descripción del trabajo..."></textarea>
+
+    <h3 style="background:#0b3158;color:white;padding:6px 10px;border-radius:6px;font-size:13px;margin:10px 0 8px">DATOS TÉCNICOS</h3>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <div><label style="font-size:12px">Marca</label><input id="vent_marca" placeholder="Siemens"></div>
+      <div><label style="font-size:12px">N° Serie</label><input id="vent_numSerie"></div>
+      <div><label style="font-size:12px">N° Fases</label><input id="vent_numFases" placeholder="3"></div>
+      <div><label style="font-size:12px">Frame (carcaza)</label><input id="vent_frame"></div>
+      <div><label style="font-size:12px">Grado protección</label><input id="vent_grado" placeholder="IP 55"></div>
+      <div><label style="font-size:12px">Clase aislamiento</label><input id="vent_claseAis" placeholder="F"></div>
+      <div><label style="font-size:12px">Frecuencia</label><input id="vent_frecuencia" placeholder="50 Hz"></div>
+      <div><label style="font-size:12px">Tensión nominal</label><input id="vent_tension" placeholder="400V"></div>
+      <div><label style="font-size:12px">Potencia nominal</label><input id="vent_potencia" placeholder="5,5 Kw"></div>
+      <div><label style="font-size:12px">Velocidad nominal</label><input id="vent_velocidad" placeholder="2980 rpm"></div>
+      <div><label style="font-size:12px">Corriente nominal</label><input id="vent_corriente" placeholder="11,1A"></div>
+      <div><label style="font-size:12px">Conexión en placa</label><input id="vent_conexion" placeholder="Delta"></div>
+    </div>
+
+    <div style="display:flex;gap:8px;margin:10px 0 4px">
+      <button onclick="guardarAvanceVentilador()" style="flex:1;background:#16a34a">💾 Guardar</button>
+    </div>
+
+    <div class="nav" style="margin-top:8px">
+      <button class="btn-gris" onclick="mostrar('seleccionProtocolo')">⬅️ Volver</button>
+      <button class="btn-verde" onclick="irVentiladorPre()">Siguiente ➜</button>
+    </div>
+  </div>
+</section>
+
+<section id="ventiladorPre" class="pantalla">
+  <div class="topbar">Ventilador — PRE Mantención</div>
+  <div class="card">
+
+    <h3 style="background:#0b3158;color:white;padding:6px 10px;border-radius:6px;font-size:13px;margin:0 0 4px">Pruebas generales PRE</h3>
+    <p style="font-size:10px;color:#888;margin:0 0 8px">Ingresa el valor medido en Observaciones</p>
+
+    <div class="sino-item">
+      <div class="sino-top"><span class="sino-label">Prueba resistencia ohmica L1 - L2</span><div class="sino-btns"><button id="vent_pre_ohm12_si" class="btn-sino" onclick="setSinoVent('vent_pre_ohm12','si')">SÍ</button><button id="vent_pre_ohm12_no" class="btn-sino" onclick="setSinoVent('vent_pre_ohm12','no')">NO</button><button id="vent_pre_ohm12_na" class="btn-sino" onclick="setSinoVent('vent_pre_ohm12','na')">N/A</button></div></div>
+      <div class="medicion-control">
+        <input type="number" id="vent_pre_ohm12_val" class="medicion-val" placeholder="0.0" step="any" min="0">
+        <select id="vent_pre_ohm12_unit" class="medicion-unit">
+          <option value="μΩ">μΩ</option>
+          <option value="mΩ" selected>mΩ</option>
+          <option value="Ω">Ω</option>
+        </select>
+      </div>
+    </div>
+    <div class="sino-item">
+      <div class="sino-top"><span class="sino-label">Prueba resistencia ohmica L2 - L3</span><div class="sino-btns"><button id="vent_pre_ohm23_si" class="btn-sino" onclick="setSinoVent('vent_pre_ohm23','si')">SÍ</button><button id="vent_pre_ohm23_no" class="btn-sino" onclick="setSinoVent('vent_pre_ohm23','no')">NO</button><button id="vent_pre_ohm23_na" class="btn-sino" onclick="setSinoVent('vent_pre_ohm23','na')">N/A</button></div></div>
+      <div class="medicion-control">
+        <input type="number" id="vent_pre_ohm23_val" class="medicion-val" placeholder="0.0" step="any" min="0">
+        <select id="vent_pre_ohm23_unit" class="medicion-unit">
+          <option value="μΩ">μΩ</option>
+          <option value="mΩ" selected>mΩ</option>
+          <option value="Ω">Ω</option>
+        </select>
+      </div>
+    </div>
+    <div class="sino-item">
+      <div class="sino-top"><span class="sino-label">Prueba resistencia ohmica L1 - L3</span><div class="sino-btns"><button id="vent_pre_ohm13_si" class="btn-sino" onclick="setSinoVent('vent_pre_ohm13','si')">SÍ</button><button id="vent_pre_ohm13_no" class="btn-sino" onclick="setSinoVent('vent_pre_ohm13','no')">NO</button><button id="vent_pre_ohm13_na" class="btn-sino" onclick="setSinoVent('vent_pre_ohm13','na')">N/A</button></div></div>
+      <div class="medicion-control">
+        <input type="number" id="vent_pre_ohm13_val" class="medicion-val" placeholder="0.0" step="any" min="0">
+        <select id="vent_pre_ohm13_unit" class="medicion-unit">
+          <option value="μΩ">μΩ</option>
+          <option value="mΩ" selected>mΩ</option>
+          <option value="Ω">Ω</option>
+        </select>
+      </div>
+    </div>
+    <div class="sino-item">
+      <div class="sino-top"><span class="sino-label">Prueba resistencia aislación 1&quot; L-1</span><div class="sino-btns"><button id="vent_pre_ais1_si" class="btn-sino" onclick="setSinoVent('vent_pre_ais1','si')">SÍ</button><button id="vent_pre_ais1_no" class="btn-sino" onclick="setSinoVent('vent_pre_ais1','no')">NO</button><button id="vent_pre_ais1_na" class="btn-sino" onclick="setSinoVent('vent_pre_ais1','na')">N/A</button></div></div>
+      <div class="medicion-control">
+        <input type="number" id="vent_pre_ais1_val" class="medicion-val" placeholder="0.0" step="any" min="0">
+        <select id="vent_pre_ais1_unit" class="medicion-unit">
+          <option value="MΩ">MΩ</option>
+          <option value="GΩ" selected>GΩ</option>
+          <option value="TΩ">TΩ</option>
+        </select>
+      </div>
+    </div>
+    <div class="sino-item">
+      <div class="sino-top"><span class="sino-label">Prueba resistencia aislación 1&quot; L-2</span><div class="sino-btns"><button id="vent_pre_ais2_si" class="btn-sino" onclick="setSinoVent('vent_pre_ais2','si')">SÍ</button><button id="vent_pre_ais2_no" class="btn-sino" onclick="setSinoVent('vent_pre_ais2','no')">NO</button><button id="vent_pre_ais2_na" class="btn-sino" onclick="setSinoVent('vent_pre_ais2','na')">N/A</button></div></div>
+      <div class="medicion-control">
+        <input type="number" id="vent_pre_ais2_val" class="medicion-val" placeholder="0.0" step="any" min="0">
+        <select id="vent_pre_ais2_unit" class="medicion-unit">
+          <option value="MΩ">MΩ</option>
+          <option value="GΩ" selected>GΩ</option>
+          <option value="TΩ">TΩ</option>
+        </select>
+      </div>
+    </div>
+    <div class="sino-item">
+      <div class="sino-top"><span class="sino-label">Prueba resistencia aislación 1&quot; L-3</span><div class="sino-btns"><button id="vent_pre_ais3_si" class="btn-sino" onclick="setSinoVent('vent_pre_ais3','si')">SÍ</button><button id="vent_pre_ais3_no" class="btn-sino" onclick="setSinoVent('vent_pre_ais3','no')">NO</button><button id="vent_pre_ais3_na" class="btn-sino" onclick="setSinoVent('vent_pre_ais3','na')">N/A</button></div></div>
+      <div class="medicion-control">
+        <input type="number" id="vent_pre_ais3_val" class="medicion-val" placeholder="0.0" step="any" min="0">
+        <select id="vent_pre_ais3_unit" class="medicion-unit">
+          <option value="MΩ">MΩ</option>
+          <option value="GΩ" selected>GΩ</option>
+          <option value="TΩ">TΩ</option>
+        </select>
+      </div>
+    </div>
+    <div class="sino-item">
+      <div class="sino-top"><span class="sino-label">Prueba de aislación IP estator</span><div class="sino-btns"><button id="vent_pre_ip_si" class="btn-sino" onclick="setSinoVent('vent_pre_ip','si')">SÍ</button><button id="vent_pre_ip_no" class="btn-sino" onclick="setSinoVent('vent_pre_ip','no')">NO</button><button id="vent_pre_ip_na" class="btn-sino" onclick="setSinoVent('vent_pre_ip','na')">N/A</button></div></div>
+      <input type="text" id="vent_pre_ip_obs" class="sino-obs" placeholder="Observación...">
+    </div>
+
+    <h3 style="background:#0b3158;color:white;padding:6px 10px;border-radius:6px;font-size:13px;margin:14px 0 4px">Inspecciones generales PRE</h3>
+
+    <div class="sino-item">
+      <div class="sino-top"><span class="sino-label">Chequeo de aspas de ventilación</span><div class="sino-btns"><button id="vent_pre_aspas_si" class="btn-sino" onclick="setSinoVent('vent_pre_aspas','si')">SÍ</button><button id="vent_pre_aspas_no" class="btn-sino" onclick="setSinoVent('vent_pre_aspas','no')">NO</button><button id="vent_pre_aspas_na" class="btn-sino" onclick="setSinoVent('vent_pre_aspas','na')">N/A</button></div></div>
+      <input type="text" id="vent_pre_aspas_obs" class="sino-obs" placeholder="Observación...">
+    </div>
+    <div class="sino-item">
+      <div class="sino-top"><span class="sino-label">Chequeo de cubre aspas de ventilación</span><div class="sino-btns"><button id="vent_pre_cubre_si" class="btn-sino" onclick="setSinoVent('vent_pre_cubre','si')">SÍ</button><button id="vent_pre_cubre_no" class="btn-sino" onclick="setSinoVent('vent_pre_cubre','no')">NO</button><button id="vent_pre_cubre_na" class="btn-sino" onclick="setSinoVent('vent_pre_cubre','na')">N/A</button></div></div>
+      <input type="text" id="vent_pre_cubre_obs" class="sino-obs" placeholder="Observación...">
+    </div>
+    <div class="sino-item">
+      <div class="sino-top"><span class="sino-label">Chequeo de pernería en general</span><div class="sino-btns"><button id="vent_pre_pern_si" class="btn-sino" onclick="setSinoVent('vent_pre_pern','si')">SÍ</button><button id="vent_pre_pern_no" class="btn-sino" onclick="setSinoVent('vent_pre_pern','no')">NO</button><button id="vent_pre_pern_na" class="btn-sino" onclick="setSinoVent('vent_pre_pern','na')">N/A</button></div></div>
+      <input type="text" id="vent_pre_pern_obs" class="sino-obs" placeholder="Observación...">
+    </div>
+    <div class="sino-item">
+      <div class="sino-top"><span class="sino-label">Inspección cables en caja de conexión</span><div class="sino-btns"><button id="vent_pre_cables_si" class="btn-sino" onclick="setSinoVent('vent_pre_cables','si')">SÍ</button><button id="vent_pre_cables_no" class="btn-sino" onclick="setSinoVent('vent_pre_cables','no')">NO</button><button id="vent_pre_cables_na" class="btn-sino" onclick="setSinoVent('vent_pre_cables','na')">N/A</button></div></div>
+      <input type="text" id="vent_pre_cables_obs" class="sino-obs" placeholder="Observación...">
+    </div>
+    <div class="sino-item">
+      <div class="sino-top"><span class="sino-label">Inspección de terminales de conexión</span><div class="sino-btns"><button id="vent_pre_term_si" class="btn-sino" onclick="setSinoVent('vent_pre_term','si')">SÍ</button><button id="vent_pre_term_no" class="btn-sino" onclick="setSinoVent('vent_pre_term','no')">NO</button><button id="vent_pre_term_na" class="btn-sino" onclick="setSinoVent('vent_pre_term','na')">N/A</button></div></div>
+      <input type="text" id="vent_pre_term_obs" class="sino-obs" placeholder="Observación...">
+    </div>
+    <div class="sino-item">
+      <div class="sino-top"><span class="sino-label">Verificación de conexión a tierra</span><div class="sino-btns"><button id="vent_pre_tierra_si" class="btn-sino" onclick="setSinoVent('vent_pre_tierra','si')">SÍ</button><button id="vent_pre_tierra_no" class="btn-sino" onclick="setSinoVent('vent_pre_tierra','no')">NO</button><button id="vent_pre_tierra_na" class="btn-sino" onclick="setSinoVent('vent_pre_tierra','na')">N/A</button></div></div>
+      <input type="text" id="vent_pre_tierra_obs" class="sino-obs" placeholder="Observación...">
+    </div>
+    <div class="sino-item" style="border-bottom:none">
+      <div class="sino-top"><span class="sino-label">Otro</span><div class="sino-btns"><button id="vent_pre_otro_si" class="btn-sino" onclick="setSinoVent('vent_pre_otro','si')">SÍ</button><button id="vent_pre_otro_no" class="btn-sino" onclick="setSinoVent('vent_pre_otro','no')">NO</button><button id="vent_pre_otro_na" class="btn-sino" onclick="setSinoVent('vent_pre_otro','na')">N/A</button></div></div>
+      <input type="text" id="vent_pre_otro_obs" class="sino-obs" placeholder="Especificar...">
+    </div>
+
+    <div style="display:flex;gap:8px;margin:10px 0 4px">
+      <button onclick="guardarAvanceVentilador()" style="flex:1;background:#16a34a">💾 Guardar</button>
+    </div>
+
+    <div class="nav" style="margin-top:8px">
+      <button class="btn-gris" onclick="mostrar('ventiladorDatos')">⬅️ Anterior</button>
+      <button class="btn-verde" onclick="irVentiladorPost()">Siguiente ➜</button>
+    </div>
+  </div>
+</section>
+
+<section id="ventiladorPost" class="pantalla">
+  <div class="topbar">Ventilador — POST Mantención</div>
+  <div class="card">
+
+    <h3 style="background:#0b3158;color:white;padding:6px 10px;border-radius:6px;font-size:13px;margin:0 0 8px">Prueba corriente nominal POST</h3>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+      <div><label style="font-size:12px">L1 (A)</label><input type="number" step="0.1" id="vent_post_l1" placeholder="9,9"></div>
+      <div><label style="font-size:12px">L2 (A)</label><input type="number" step="0.1" id="vent_post_l2" placeholder="9,1"></div>
+      <div><label style="font-size:12px">L3 (A)</label><input type="number" step="0.1" id="vent_post_l3" placeholder="9,6"></div>
+    </div>
+    <label style="font-size:12px">Observaciones corriente</label>
+    <input type="text" id="vent_post_corr_obs" placeholder="Observación...">
+
+    <h3 style="background:#0b3158;color:white;padding:6px 10px;border-radius:6px;font-size:13px;margin:14px 0 4px">Inspecciones generales POST</h3>
+
+    <div class="sino-item">
+      <div class="sino-top"><span class="sino-label">Chequeo de aspas de ventilación</span><div class="sino-btns"><button id="vent_post_aspas_si" class="btn-sino" onclick="setSinoVent('vent_post_aspas','si')">SÍ</button><button id="vent_post_aspas_no" class="btn-sino" onclick="setSinoVent('vent_post_aspas','no')">NO</button><button id="vent_post_aspas_na" class="btn-sino" onclick="setSinoVent('vent_post_aspas','na')">N/A</button></div></div>
+      <input type="text" id="vent_post_aspas_obs" class="sino-obs" placeholder="Observación...">
+    </div>
+    <div class="sino-item">
+      <div class="sino-top"><span class="sino-label">Chequeo de cubre aspas de ventilación</span><div class="sino-btns"><button id="vent_post_cubre_si" class="btn-sino" onclick="setSinoVent('vent_post_cubre','si')">SÍ</button><button id="vent_post_cubre_no" class="btn-sino" onclick="setSinoVent('vent_post_cubre','no')">NO</button><button id="vent_post_cubre_na" class="btn-sino" onclick="setSinoVent('vent_post_cubre','na')">N/A</button></div></div>
+      <input type="text" id="vent_post_cubre_obs" class="sino-obs" placeholder="Observación...">
+    </div>
+    <div class="sino-item">
+      <div class="sino-top"><span class="sino-label">Chequeo de pernería en general</span><div class="sino-btns"><button id="vent_post_pern_si" class="btn-sino" onclick="setSinoVent('vent_post_pern','si')">SÍ</button><button id="vent_post_pern_no" class="btn-sino" onclick="setSinoVent('vent_post_pern','no')">NO</button><button id="vent_post_pern_na" class="btn-sino" onclick="setSinoVent('vent_post_pern','na')">N/A</button></div></div>
+      <input type="text" id="vent_post_pern_obs" class="sino-obs" placeholder="Observación...">
+    </div>
+    <div class="sino-item">
+      <div class="sino-top"><span class="sino-label">Inspección cables en caja de conexión</span><div class="sino-btns"><button id="vent_post_cables_si" class="btn-sino" onclick="setSinoVent('vent_post_cables','si')">SÍ</button><button id="vent_post_cables_no" class="btn-sino" onclick="setSinoVent('vent_post_cables','no')">NO</button><button id="vent_post_cables_na" class="btn-sino" onclick="setSinoVent('vent_post_cables','na')">N/A</button></div></div>
+      <input type="text" id="vent_post_cables_obs" class="sino-obs" placeholder="Observación...">
+    </div>
+    <div class="sino-item">
+      <div class="sino-top"><span class="sino-label">Inspección de terminales de conexión</span><div class="sino-btns"><button id="vent_post_term_si" class="btn-sino" onclick="setSinoVent('vent_post_term','si')">SÍ</button><button id="vent_post_term_no" class="btn-sino" onclick="setSinoVent('vent_post_term','no')">NO</button><button id="vent_post_term_na" class="btn-sino" onclick="setSinoVent('vent_post_term','na')">N/A</button></div></div>
+      <input type="text" id="vent_post_term_obs" class="sino-obs" placeholder="Observación...">
+    </div>
+    <div class="sino-item">
+      <div class="sino-top"><span class="sino-label">Verificación de conexión a tierra</span><div class="sino-btns"><button id="vent_post_tierra_si" class="btn-sino" onclick="setSinoVent('vent_post_tierra','si')">SÍ</button><button id="vent_post_tierra_no" class="btn-sino" onclick="setSinoVent('vent_post_tierra','no')">NO</button><button id="vent_post_tierra_na" class="btn-sino" onclick="setSinoVent('vent_post_tierra','na')">N/A</button></div></div>
+      <input type="text" id="vent_post_tierra_obs" class="sino-obs" placeholder="Observación...">
+    </div>
+    <div class="sino-item" style="border-bottom:none">
+      <div class="sino-top"><span class="sino-label">Verificación de sentido de giro</span><div class="sino-btns"><button id="vent_post_giro_si" class="btn-sino" onclick="setSinoVent('vent_post_giro','si')">SÍ</button><button id="vent_post_giro_no" class="btn-sino" onclick="setSinoVent('vent_post_giro','no')">NO</button><button id="vent_post_giro_na" class="btn-sino" onclick="setSinoVent('vent_post_giro','na')">N/A</button></div></div>
+      <input type="text" id="vent_post_giro_obs" class="sino-obs" placeholder="Observación...">
+    </div>
+
+    <h3 style="background:#0b3158;color:white;padding:6px 10px;border-radius:6px;font-size:13px;margin:14px 0 8px">Firmas</h3>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <div><label style="font-size:12px">Nombre Trabajador</label><input id="vent_trabajador" placeholder="Nombre completo"></div>
+      <div><label style="font-size:12px">Nombre Supervisor</label><input id="vent_supervisor" placeholder="Nombre completo"></div>
+    </div>
+
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button onclick="guardarVentilador()" style="flex:1;background:#16a34a">💾 Guardar</button>
+      <button onclick="generarPDFVentilador()" style="flex:1;background:#dc2626">📄 PDF</button>
+    </div>
+    <button onclick="generarEntregaVentilador()" style="width:100%;background:#7c3aed;margin:4px 0 2px">📋 Protocolo de Entrega</button>
+
+    <div class="nav" style="margin-top:8px">
+      <button class="btn-gris" onclick="mostrar('ventiladorPre')">⬅️ Anterior</button>
+      <button class="btn-gris" onclick="mostrar('panel')">🏠 Panel</button>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== FIN VENTILADOR ===================== -->
+
+<!-- ===================== BODEGA / HERRAMIENTAS ===================== -->
+
+<section id="bodega" class="pantalla">
+  <div class="topbar">
+    <span onclick="mostrar('panel')" style="cursor:pointer">← Volver</span>
+    &nbsp;📦 Bodega / Herramientas
+  </div>
+  <div class="card">
+    <h2 style="color:#0b3158;text-align:center;margin-bottom:20px">📦 Bodega / Herramientas</h2>
+    <div class="grid">
+      <div class="modulo" onclick="irRegistrar()">➕<br><b>Registrar herramienta</b></div>
+      <div class="modulo" onclick="irInventario()">📋<br><b>Inventario</b></div>
+      <div class="modulo" onclick="irEntregar()">🚚<br><b>Entregar herramienta</b></div>
+      <div class="modulo" onclick="irDevolver()">↩️<br><b>Devolver herramienta</b></div>
+      <div class="modulo" onclick="irReporte()">📊<br><b>Reporte</b></div>
+      <div class="modulo" onclick="irImportar()">📥<br><b>Importar CSV</b></div>
+    </div>
+  </div>
+</section>
+
+<!-- BODEGA: REGISTRAR HERRAMIENTA -->
+<section id="bodega-registrar" class="pantalla">
+  <div class="topbar">
+    <span onclick="mostrar('bodega')" style="cursor:pointer">← Volver</span>
+    &nbsp;➕ Registrar Herramienta
+  </div>
+  <div class="card">
+    <h3 style="color:#0b3158;margin-bottom:16px">Datos de la herramienta</h3>
+
+    <label>Código interno *</label>
+    <input type="text" id="bod_codigo" placeholder="Ej: HERR-001">
+
+    <label>Nombre de herramienta *</label>
+    <input type="text" id="bod_nombre" placeholder="Ej: Llave torque 3/4">
+
+    <label>Marca</label>
+    <input type="text" id="bod_marca" placeholder="Ej: Stanley">
+
+    <label>Modelo</label>
+    <input type="text" id="bod_modelo" placeholder="Ej: FMHT0-80177">
+
+    <label>Número de serie</label>
+    <input type="text" id="bod_serie" placeholder="S/N">
+
+    <label>Categoría</label>
+    <input type="text" id="bod_categoria" placeholder="Ej: Herramienta de mano, Instrumento, EPP...">
+
+    <label>Estado</label>
+    <select id="bod_estado">
+      <option value="Disponible">Disponible</option>
+      <option value="Asignada">Asignada</option>
+      <option value="Dañada">Dañada</option>
+      <option value="En reparación">En reparación</option>
+      <option value="Perdida">Perdida</option>
+    </select>
+
+    <label>Ubicación actual</label>
+    <select id="bod_ubicacion">
+      <option value="Bodega">Bodega</option>
+      <option value="Camión">Camión</option>
+      <option value="Faena">Faena</option>
+      <option value="Técnico">Técnico</option>
+    </select>
+
+    <label>Responsable</label>
+    <input type="text" id="bod_responsable" placeholder="Nombre del técnico responsable">
+
+    <label>Faena</label>
+    <input type="text" id="bod_faena" placeholder="Nombre de la faena">
+
+    <label>Fecha de ingreso</label>
+    <input type="date" id="bod_fechaIngreso">
+
+    <label>Fecha de calibración</label>
+    <input type="date" id="bod_fechaCalibracion">
+
+    <label>Fecha de vencimiento de calibración</label>
+    <input type="date" id="bod_fechaVencimiento">
+
+    <label>Observaciones</label>
+    <textarea id="bod_observaciones" rows="3" placeholder="Observaciones adicionales..."></textarea>
+
+    <label>Foto de herramienta</label>
+    <input type="file" id="bod_foto" accept="image/*" capture="environment">
+
+    <br>
+    <button class="btn-verde" onclick="bodegaRegistrar()">💾 Guardar herramienta</button>
+    <button class="btn-gris" onclick="mostrar('bodega')">✖ Cancelar</button>
+  </div>
+</section>
+
+<!-- BODEGA: INVENTARIO -->
+<section id="bodega-inventario" class="pantalla">
+  <div class="topbar">
+    <span onclick="mostrar('bodega')" style="cursor:pointer">← Volver</span>
+    &nbsp;📋 Inventario
+  </div>
+  <div class="card">
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
+      <select id="bod_filtroEstado" onchange="bodegaCargarInventario()" style="flex:1;min-width:140px">
+        <option value="">Todos los estados</option>
+        <option value="Disponible">Disponible</option>
+        <option value="Asignada">Asignada</option>
+        <option value="Dañada">Dañada</option>
+        <option value="En reparación">En reparación</option>
+        <option value="Perdida">Perdida</option>
+      </select>
+      <button class="btn-gris" onclick="bodegaCargarInventario()" style="flex:0">🔄 Actualizar</button>
+    </div>
+    <div id="bod_listaInventario">
+      <p style="color:#6b7280;text-align:center;padding:20px">Presiona Actualizar para cargar el inventario.</p>
+    </div>
+  </div>
+</section>
+
+<!-- BODEGA: ENTREGAR HERRAMIENTA -->
+<section id="bodega-entregar" class="pantalla">
+  <div class="topbar">
+    <span onclick="mostrar('bodega')" style="cursor:pointer">← Volver</span>
+    &nbsp;🚚 Entregar Herramienta
+  </div>
+  <div class="card">
+    <h3 style="color:#0b3158;margin-bottom:16px">Registrar entrega</h3>
+
+    <label>Herramienta</label>
+    <select id="bod_entCodigo">
+      <option value="">— Seleccione herramienta —</option>
+    </select>
+
+    <label>Técnico responsable *</label>
+    <input type="text" id="bod_entTecnico" placeholder="Nombre completo">
+
+    <label>Faena</label>
+    <input type="text" id="bod_entFaena" placeholder="Faena de destino">
+
+    <label>Ubicación destino</label>
+    <select id="bod_entUbicacion">
+      <option value="Faena">Faena</option>
+      <option value="Camión">Camión</option>
+      <option value="Técnico">Técnico</option>
+    </select>
+
+    <label>Fecha de entrega</label>
+    <input type="date" id="bod_entFecha">
+
+    <label>Observaciones</label>
+    <textarea id="bod_entObs" rows="2" placeholder="Observaciones de la entrega..."></textarea>
+
+    <br>
+    <button class="btn-verde" onclick="bodegaEntregar()">✅ Confirmar entrega</button>
+    <button class="btn-gris" onclick="mostrar('bodega')">✖ Cancelar</button>
+  </div>
+</section>
+
+<!-- BODEGA: DEVOLVER HERRAMIENTA -->
+<section id="bodega-devolver" class="pantalla">
+  <div class="topbar">
+    <span onclick="mostrar('bodega')" style="cursor:pointer">← Volver</span>
+    &nbsp;↩️ Devolver Herramienta
+  </div>
+  <div class="card">
+    <h3 style="color:#0b3158;margin-bottom:16px">Registrar devolución</h3>
+
+    <label>Herramienta</label>
+    <select id="bod_devCodigo">
+      <option value="">— Seleccione herramienta —</option>
+    </select>
+
+    <label>Estado al devolver</label>
+    <select id="bod_devEstado">
+      <option value="Disponible">Disponible</option>
+      <option value="Dañada">Dañada</option>
+      <option value="En reparación">En reparación</option>
+    </select>
+
+    <label>Fecha de devolución</label>
+    <input type="date" id="bod_devFecha">
+
+    <label>Observaciones</label>
+    <textarea id="bod_devObs" rows="2" placeholder="Estado, novedades, daños observados..."></textarea>
+
+    <br>
+    <button class="btn-verde" onclick="bodegaDevolver()">✅ Confirmar devolución</button>
+    <button class="btn-gris" onclick="mostrar('bodega')">✖ Cancelar</button>
+  </div>
+</section>
+
+<!-- BODEGA: REPORTE -->
+<section id="bodega-reporte" class="pantalla">
+  <div class="topbar">
+    <span onclick="mostrar('bodega')" style="cursor:pointer">← Volver</span>
+    &nbsp;📊 Reporte de Bodega
+  </div>
+  <div class="card">
+    <div id="bod_reporte">
+      <p style="color:#6b7280;text-align:center;padding:20px">Cargando reporte...</p>
+    </div>
+  </div>
+</section>
+
+<!-- BODEGA: IMPORTAR CSV -->
+<section id="bodega-importar" class="pantalla">
+  <div class="topbar">
+    <span onclick="mostrar('bodega')" style="cursor:pointer">← Volver</span>
+    &nbsp;📥 Importar Herramientas
+  </div>
+  <div class="card">
+    <h3 style="color:#0b3158;margin-bottom:4px">Importar desde Excel / CSV</h3>
+    <p style="font-size:13px;color:#6b7280;margin:0 0 16px">
+      Carga masiva desde un archivo CSV. Si el código ya existe se actualiza; si no existe, se crea.
+    </p>
+
+    <!-- Descarga de plantilla -->
+    <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:12px 14px;margin-bottom:16px">
+      <p style="font-size:13px;color:#1d4ed8;font-weight:bold;margin:0 0 4px">¿Primera vez? Descarga la plantilla</p>
+      <p style="font-size:12px;color:#555;margin:0 0 10px">Completa el archivo en Excel y guárdalo como <b>CSV UTF-8</b> antes de importar.</p>
+      <button onclick="bodegaDescargarPlantilla()" style="background:#1d4ed8;font-size:13px;padding:9px 18px">📥 Descargar plantilla CSV</button>
+    </div>
+
+    <!-- Referencia de columnas -->
+    <details style="margin-bottom:16px">
+      <summary style="font-size:13px;font-weight:bold;cursor:pointer;color:#0b3158;padding:4px 0">📋 Ver columnas esperadas</summary>
+      <div style="overflow-x:auto;margin-top:8px">
+        <table style="font-size:11px">
+          <tr style="background:#0b3158;color:white"><th style="padding:6px 8px">Columna</th><th>Obligatoria</th><th>Valores posibles</th></tr>
+          <tr><td style="padding:5px 8px;font-weight:bold">codigo</td><td style="text-align:center">✅</td><td>Texto único · ej: HERR-001</td></tr>
+          <tr style="background:#f8fafc"><td style="padding:5px 8px;font-weight:bold">nombre</td><td style="text-align:center">✅</td><td>Texto libre</td></tr>
+          <tr><td style="padding:5px 8px">marca</td><td style="text-align:center">—</td><td>Texto libre</td></tr>
+          <tr style="background:#f8fafc"><td style="padding:5px 8px">modelo</td><td style="text-align:center">—</td><td>Texto libre</td></tr>
+          <tr><td style="padding:5px 8px">serie</td><td style="text-align:center">—</td><td>Número de serie</td></tr>
+          <tr style="background:#f8fafc"><td style="padding:5px 8px">categoria</td><td style="text-align:center">—</td><td>Texto libre</td></tr>
+          <tr><td style="padding:5px 8px">estado</td><td style="text-align:center">—</td><td>Disponible · Asignada · Dañada · En reparación · Perdida</td></tr>
+          <tr style="background:#f8fafc"><td style="padding:5px 8px">ubicacion</td><td style="text-align:center">—</td><td>Bodega · Camión · Faena · Técnico</td></tr>
+          <tr><td style="padding:5px 8px">responsable</td><td style="text-align:center">—</td><td>Nombre del técnico</td></tr>
+          <tr style="background:#f8fafc"><td style="padding:5px 8px">faena</td><td style="text-align:center">—</td><td>Texto libre</td></tr>
+          <tr><td style="padding:5px 8px">fecha_ingreso</td><td style="text-align:center">—</td><td>YYYY-MM-DD · ej: 2026-01-15</td></tr>
+          <tr style="background:#f8fafc"><td style="padding:5px 8px">fecha_calibracion</td><td style="text-align:center">—</td><td>YYYY-MM-DD</td></tr>
+          <tr><td style="padding:5px 8px">fecha_vencimiento</td><td style="text-align:center">—</td><td>YYYY-MM-DD</td></tr>
+          <tr style="background:#f8fafc"><td style="padding:5px 8px">observaciones</td><td style="text-align:center">—</td><td>Texto libre</td></tr>
+          <tr><td style="padding:5px 8px">foto_url</td><td style="text-align:center">—</td><td>URL de imagen (opcional)</td></tr>
+        </table>
+      </div>
+    </details>
+
+    <!-- Selector de archivo -->
+    <label style="font-weight:bold;font-size:13px;color:#374151;display:block;margin-bottom:4px">Seleccionar archivo CSV</label>
+    <input type="file" id="bod_impArchivo" accept=".csv,.txt" onchange="bodegaPreviewCSV(event)">
+
+    <!-- Vista previa dinámica -->
+    <div id="bod_impPreview" style="margin-top:12px"></div>
+
+    <!-- Botones -->
+    <br>
+    <button id="bod_btnImportar" class="btn-verde" onclick="bodegaImportar()" disabled
+            style="width:100%;font-size:15px;padding:14px;opacity:0.5">
+      ☁️ Importar a Supabase
+    </button>
+    <button class="btn-gris" onclick="mostrar('bodega')" style="width:100%;margin-top:8px">✖ Cancelar</button>
+
+    <!-- Resultado de la importación -->
+    <div id="bod_impResultado"></div>
+  </div>
+</section>
+
+<!-- ===================== FIN BODEGA ===================== -->
 
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/database.js"></script>
 <script src="js/utils.js"></script>
+<script src="js/permisos.js"></script>
 <script src="js/app.js"></script>
 <script src="js/mediciones.js"></script>
 <script src="js/historial.js"></script>
 <script src="js/grafico.js"></script>
 <script src="js/pdf.js"></script>
+<script src="js/carbones.js"></script>
+<script src="js/ventilador.js"></script>
+<script src="js/sync.js"></script>
+<script src="js/bodega.js"></script>
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js')
+      .then(() => console.log('AYCA SW registrado'))
+      .catch(e => console.log('SW no disponible:', e.message));
+  }
+</script>
 
 </body>
 </html>

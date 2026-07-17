@@ -34,12 +34,10 @@ async function obtenerProtocolosNube() {
     .order("creado_en", { ascending: false });
 
   if (error) {
-    console.error("Error leyendo Supabase:", error);
-    alert("No se pudieron cargar los protocolos de la nube.");
-    return [];
+    console.warn("Sin acceso a protocolos en la nube:", error.message);
+    throw new Error(error.message); // historial.js captura esto y muestra banner offline
   }
 
-  console.log("Protocolos leídos desde la nube:", data);
   return data || [];
 }
 
@@ -58,19 +56,25 @@ async function guardarDielectricoNube() {
   const est1  = (typeof datosDielEst1  !== "undefined") ? datosDielEst1  : { pre: null, post: null };
   const est2  = (typeof datosDielEst2  !== "undefined") ? datosDielEst2  : { pre: null, post: null };
   const rotor = (typeof datosDielRotor !== "undefined") ? datosDielRotor : { pre: null, post: null };
-  const cliente = document.getElementById("clienteDiel")?.value || "";
-  const equipo  = document.getElementById("equipoDiel")?.value  || "";
+  const cliente = document.getElementById("clienteDiel")?.value  || "";
+  const equipo  = document.getElementById("equipoDiel")?.value   || "";
+  const faena   = document.getElementById("faenaDiel")?.value    || "";
+  const area    = document.getElementById("areaDiel")?.value     || "Dieléctrico";
+  const evento  = document.getElementById("eventoDiel")?.value   || "";
+  const tecnico = document.getElementById("tecnicoDiel")?.value  || "";
+  const fechaDiel = document.getElementById("fechaDiel")?.value  || "";
+  const kvNominal = document.getElementById("kvNominalDiel")?.value || "";
 
-  const fechaRef = est1.pre?.fecha || est1.post?.fecha || new Date().toISOString().slice(0, 10);
+  const fechaRef = fechaDiel || est1.pre?.fecha || est1.post?.fecha || new Date().toISOString().slice(0, 10);
 
   const registro = {
     numero:    numProt,
     fecha:     fechaRef,
     cliente:   cliente,
-    faena:     equipo,
-    area:      "Dieléctrico",
-    tecnico:   "",
-    posiciones: JSON.stringify({ est1, est2, rotor })
+    faena:     faena || equipo,
+    area:      area,
+    tecnico:   tecnico,
+    posiciones: JSON.stringify({ est1, est2, rotor, equipo, evento, faena, area, tecnico, fechaDiel, kvNominal })
   };
 
   const { error } = await supabaseAYCA
@@ -135,8 +139,22 @@ async function cargarDielectricoNube() {
 
   const clienteEl = document.getElementById("clienteDiel");
   const equipoEl  = document.getElementById("equipoDiel");
+  const faenaEl   = document.getElementById("faenaDiel");
+  const areaEl    = document.getElementById("areaDiel");
+  const eventoEl  = document.getElementById("eventoDiel");
+  const tecnicoEl = document.getElementById("tecnicoDiel");
+  const fechaEl   = document.getElementById("fechaDiel");
+  const kvEl      = document.getElementById("kvNominalDiel");
   if (clienteEl && data.cliente) clienteEl.value = data.cliente;
-  if (equipoEl  && data.faena)   equipoEl.value  = data.faena;
+  // equipo was stored in faena column (legacy) or in posiciones.equipo (new)
+  const pos = (() => { try { return JSON.parse(data.posiciones); } catch(e) { return {}; } })();
+  if (equipoEl)  equipoEl.value  = pos.equipo   || data.faena || "";
+  if (faenaEl)   faenaEl.value   = pos.faena    || data.faena || "";
+  if (areaEl)    areaEl.value    = pos.area     || data.area  || "Molienda";
+  if (eventoEl)  eventoEl.value  = pos.evento   || "";
+  if (tecnicoEl) tecnicoEl.value = pos.tecnico  || data.tecnico || "";
+  if (fechaEl)   fechaEl.value   = pos.fechaDiel || data.fecha || "";
+  if (kvEl)      kvEl.value      = pos.kvNominal || "";
 
   const tienePre  = !!(est1Data.pre?.mediciones?.some(m => m.r));
   const tienePost = !!(est1Data.post?.mediciones?.some(m => m.r));
@@ -147,4 +165,76 @@ async function cargarDielectricoNube() {
 
   if (typeof mostrar   === "function") mostrar("estator1");
   if (typeof cargarEst1 === "function") cargarEst1(typeof modoEst1 !== "undefined" ? modoEst1 : "pre");
+}
+
+// ── Cargar protocolo de Carbones desde la nube ──
+async function cargarCarbonesNube() {
+  const numProt = document.getElementById("carb_numProtocolo")?.value?.trim();
+  if (!numProt) {
+    alert("Ingresa el N° de protocolo en el campo superior antes de presionar Cargar.");
+    return;
+  }
+
+  const { data, error } = await supabaseAYCA
+    .from("protocolos_ayca")
+    .select("*")
+    .eq("numero", numProt)
+    .single();
+
+  if (error || !data) {
+    alert("No se encontró el protocolo: " + numProt + "\nVerifica el número e intenta de nuevo.");
+    return;
+  }
+
+  let parsed;
+  try {
+    parsed = JSON.parse(data.posiciones);
+    if (!parsed || typeof parsed !== "object") throw new Error("Formato inválido");
+  } catch (e) {
+    alert("Error al leer los datos del protocolo: " + e.message);
+    return;
+  }
+
+  // Guardar en localStorage para que retomarCarbones() pueda cargarlo
+  localStorage.setItem(`carbones_${numProt}`, data.posiciones);
+
+  alert("✅ Protocolo " + numProt + " cargado correctamente.");
+
+  if (typeof retomarCarbones === "function") retomarCarbones(numProt);
+}
+
+// ── Cargar protocolo de Ventilador desde la nube ──
+async function cargarVentiladorNube() {
+  const numProt = document.getElementById("vent_numProtocolo")?.value?.trim();
+  if (!numProt) {
+    alert("Ingresa el N° de protocolo en el campo superior antes de presionar Cargar.");
+    return;
+  }
+
+  const { data, error } = await supabaseAYCA
+    .from("protocolos_ayca")
+    .select("*")
+    .eq("numero", numProt)
+    .single();
+
+  if (error || !data) {
+    alert("No se encontró el protocolo: " + numProt + "\nVerifica el número e intenta de nuevo.");
+    return;
+  }
+
+  let parsed;
+  try {
+    parsed = JSON.parse(data.posiciones);
+    if (!parsed || typeof parsed !== "object") throw new Error("Formato inválido");
+  } catch (e) {
+    alert("Error al leer los datos del protocolo: " + e.message);
+    return;
+  }
+
+  // Guardar en localStorage para que retomarVentilador() pueda cargarlo
+  localStorage.setItem(`ventilador_${numProt}`, data.posiciones);
+
+  alert("✅ Protocolo " + numProt + " cargado correctamente.");
+
+  if (typeof retomarVentilador === "function") retomarVentilador(numProt);
 }
