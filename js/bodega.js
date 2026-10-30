@@ -4,10 +4,11 @@
 // Tablas Supabase requeridas:
 //   herramientas (codigo PK, nombre, marca, modelo, serie, categoria,
 //                 estado, ubicacion, responsable, faena,
+//                 cantidad_total, cantidad_disponible,
 //                 fecha_ingreso, fecha_calibracion, fecha_vencimiento,
 //                 observaciones, creado_en)
 //   herramientas_movimientos (id serial PK, codigo_herramienta, tipo,
-//                 tecnico, faena, ubicacion, fecha, observaciones, creado_en)
+//                 cantidad, tecnico, faena, ubicacion, fecha, observaciones, creado_en)
 
 const TABLA_HERR = 'herramientas';
 const TABLA_MOV  = 'herramientas_movimientos';
@@ -35,7 +36,7 @@ function irInventario() {
 // ─── Navegar a bodega-entregar y cargar selector ───
 function irEntregar() {
   mostrar('bodega-entregar');
-  bodegaCargarSelector('bod_entCodigo');
+  bodegaCargarSelector('bod_entCodigo', 'entregar');
   const fechaEl = document.getElementById('bod_entFecha');
   if (fechaEl && !fechaEl.value) fechaEl.valueAsDate = new Date();
 }
@@ -43,7 +44,7 @@ function irEntregar() {
 // ─── Navegar a bodega-devolver y cargar selector ───
 function irDevolver() {
   mostrar('bodega-devolver');
-  bodegaCargarSelector('bod_devCodigo');
+  bodegaCargarSelector('bod_devCodigo', 'devolver');
   const fechaEl = document.getElementById('bod_devFecha');
   if (fechaEl && !fechaEl.value) fechaEl.valueAsDate = new Date();
 }
@@ -66,6 +67,7 @@ function irRegistrar() {
 // ══════════════════════════════════════════
 async function bodegaRegistrar() {
   const g  = id => document.getElementById(id)?.value?.trim() || '';
+  const cantidad = parseInt(g('bod_cantidad')) || 1;
   const herr = {
     codigo:             g('bod_codigo'),
     nombre:             g('bod_nombre'),
@@ -77,6 +79,8 @@ async function bodegaRegistrar() {
     ubicacion:          g('bod_ubicacion'),
     responsable:        g('bod_responsable'),
     faena:              g('bod_faena'),
+    cantidad_total:      cantidad,
+    cantidad_disponible: cantidad,
     fecha_ingreso:      g('bod_fechaIngreso')       || null,
     fecha_calibracion:  g('bod_fechaCalibracion')   || null,
     fecha_vencimiento:  g('bod_fechaVencimiento')   || null,
@@ -111,6 +115,8 @@ function _bodegaLimpiarForm() {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
+  const cant = document.getElementById('bod_cantidad');
+  if (cant) cant.value = '1';
   const est = document.getElementById('bod_estado');
   if (est) est.value = 'Disponible';
   const ub = document.getElementById('bod_ubicacion');
@@ -150,6 +156,10 @@ async function bodegaCargarInventario() {
           <span>📍 ${h.ubicacion||'—'}</span>&nbsp;·&nbsp;
           <span>👤 ${h.responsable||'—'}</span>
         </div>
+        ${(h.cantidad_total||1) > 1 ? `
+        <div style="font-size:12px;color:${(h.cantidad_disponible||0)===0?'#dc2626':'#166534'};margin-top:3px">
+          📦 Disponible: <b>${h.cantidad_disponible ?? h.cantidad_total} / ${h.cantidad_total}</b>
+        </div>` : ''}
         ${h.marca||h.modelo||h.serie ? `
         <div style="font-size:11px;color:#9ca3af;margin-top:3px">
           ${[h.marca,h.modelo,h.serie?'S/N:'+h.serie:''].filter(Boolean).join(' · ')}
@@ -173,7 +183,7 @@ function _diasParaVencer(fecha) {
 // ══════════════════════════════════════════
 // SELECTOR COMPARTIDO (entregar / devolver)
 // ══════════════════════════════════════════
-async function bodegaCargarSelector(selectId) {
+async function bodegaCargarSelector(selectId, modo) {
   const sel = document.getElementById(selectId);
   if (!sel) return;
   sel.innerHTML = '<option value="">Cargando herramientas...</option>';
@@ -181,20 +191,37 @@ async function bodegaCargarSelector(selectId) {
   try {
     const { data, error } = await supabaseAYCA
       .from(TABLA_HERR)
-      .select('codigo, nombre, estado, ubicacion, responsable, faena')
+      .select('codigo, nombre, estado, ubicacion, responsable, faena, cantidad_total, cantidad_disponible')
       .order('nombre');
     if (error) throw error;
 
+    let lista = data || [];
+    if (modo === 'entregar') lista = lista.filter(h => (h.cantidad_disponible ?? 1) > 0);
+    if (modo === 'devolver') lista = lista.filter(h => (h.cantidad_total ?? 1) - (h.cantidad_disponible ?? 1) > 0);
+
     sel.innerHTML = '<option value="">— Seleccione herramienta —</option>';
-    (data||[]).forEach(h => {
+    lista.forEach(h => {
       const opt = document.createElement('option');
       opt.value = h.codigo;
-      opt.textContent = `${h.nombre}  [${h.codigo}]  — ${h.estado}`;
+      const stock = (h.cantidad_total||1) > 1 ? ` — Disp: ${h.cantidad_disponible ?? h.cantidad_total}/${h.cantidad_total}` : '';
+      opt.textContent = `${h.nombre}  [${h.codigo}]  — ${h.estado}${stock}`;
+      opt.dataset.disponible = h.cantidad_disponible ?? 1;
+      opt.dataset.total = h.cantidad_total ?? 1;
       sel.appendChild(opt);
     });
   } catch (e) {
     sel.innerHTML = `<option value="">Error al cargar: ${e.message}</option>`;
   }
+}
+
+// ── Helper: muestra "Disponible: X/Y" bajo el select al elegir una herramienta ──
+function _bodegaMostrarDisponible(selectId, smallId) {
+  const sel = document.getElementById(selectId);
+  const small = document.getElementById(smallId);
+  if (!sel || !small) return;
+  const opt = sel.selectedOptions[0];
+  if (!opt || !opt.value) { small.textContent = ''; return; }
+  small.textContent = `Disponible: ${opt.dataset.disponible} / ${opt.dataset.total}`;
 }
 
 // ══════════════════════════════════════════
@@ -208,29 +235,46 @@ async function bodegaEntregar() {
   const ubicacion= document.getElementById('bod_entUbicacion')?.value || 'Faena';
   const fecha    = g('bod_entFecha') || new Date().toISOString().slice(0,10);
   const obs      = g('bod_entObs');
+  const cantidad = parseInt(g('bod_entCantidad')) || 1;
 
   if (!codigo) { alert('Selecciona la herramienta a entregar.'); return; }
   if (!tecnico) { alert('Ingresa el nombre del técnico responsable.'); return; }
 
   try {
+    const { data: actual, error: eGet } = await supabaseAYCA
+      .from(TABLA_HERR).select('cantidad_total, cantidad_disponible').eq('codigo', codigo).single();
+    if (eGet) throw eGet;
+
+    const disponible = actual.cantidad_disponible ?? 1;
+    if (cantidad > disponible) {
+      alert(`Solo hay ${disponible} unidad${disponible!==1?'es':''} disponible${disponible!==1?'s':''}.`);
+      return;
+    }
+
+    const nuevaDisponible = disponible - cantidad;
+    const nuevoEstado = nuevaDisponible === 0 ? 'Asignada' : 'Disponible';
+
     const { error: e1 } = await supabaseAYCA
       .from(TABLA_HERR)
-      .update({ estado:'Asignada', ubicacion, responsable:tecnico, faena })
+      .update({ estado: nuevoEstado, cantidad_disponible: nuevaDisponible, ubicacion, responsable: tecnico, faena })
       .eq('codigo', codigo);
     if (e1) throw e1;
 
     await supabaseAYCA.from(TABLA_MOV).insert([{
       codigo_herramienta: codigo,
       tipo:        'entrega',
+      cantidad,
       tecnico, faena, ubicacion, fecha, observaciones: obs,
       creado_en:   new Date().toISOString()
     }]);
 
-    alert('✅ Herramienta entregada correctamente.');
+    alert(`✅ ${cantidad} unidad${cantidad!==1?'es':''} entregada${cantidad!==1?'s':''} correctamente.`);
     document.getElementById('bod_entCodigo').value  = '';
     document.getElementById('bod_entTecnico').value = '';
     document.getElementById('bod_entFaena').value   = '';
     document.getElementById('bod_entObs').value     = '';
+    const cantEl = document.getElementById('bod_entCantidad');
+    if (cantEl) cantEl.value = '1';
     mostrar('bodega');
   } catch (e) {
     alert('❌ Error al registrar entrega: ' + e.message);
@@ -247,26 +291,44 @@ async function bodegaDevolver() {
   const estado = document.getElementById('bod_devEstado')?.value || 'Disponible';
   const fecha  = g('bod_devFecha') || new Date().toISOString().slice(0,10);
   const obs    = g('bod_devObs');
+  const cantidad = parseInt(g('bod_devCantidad')) || 1;
 
   if (!codigo) { alert('Selecciona la herramienta a devolver.'); return; }
 
   try {
+    const { data: actual, error: eGet } = await supabaseAYCA
+      .from(TABLA_HERR).select('cantidad_total, cantidad_disponible').eq('codigo', codigo).single();
+    if (eGet) throw eGet;
+
+    const total = actual.cantidad_total ?? 1;
+    const disponible = actual.cantidad_disponible ?? 1;
+    const fuera = total - disponible;
+    if (cantidad > fuera) {
+      alert(`Solo hay ${fuera} unidad${fuera!==1?'es':''} fuera de bodega.`);
+      return;
+    }
+
+    const nuevaDisponible = Math.min(disponible + cantidad, total);
+
     const { error: e1 } = await supabaseAYCA
       .from(TABLA_HERR)
-      .update({ estado, ubicacion:'Bodega', responsable:'' })
+      .update({ estado, cantidad_disponible: nuevaDisponible, ubicacion:'Bodega', responsable:'' })
       .eq('codigo', codigo);
     if (e1) throw e1;
 
     await supabaseAYCA.from(TABLA_MOV).insert([{
       codigo_herramienta: codigo,
       tipo:        'devolucion',
+      cantidad,
       ubicacion:   'Bodega', fecha, observaciones: obs,
       creado_en:   new Date().toISOString()
     }]);
 
-    alert('✅ Herramienta devuelta a Bodega.');
+    alert(`✅ ${cantidad} unidad${cantidad!==1?'es':''} devuelta${cantidad!==1?'s':''} a Bodega.`);
     document.getElementById('bod_devCodigo').value = '';
     document.getElementById('bod_devObs').value    = '';
+    const cantEl = document.getElementById('bod_devCantidad');
+    if (cantEl) cantEl.value = '1';
     mostrar('bodega');
   } catch (e) {
     alert('❌ Error al registrar devolución: ' + e.message);
@@ -350,9 +412,9 @@ let _bodegaCSVDatos = [];  // filas parseadas del archivo cargado
 
 // ── Generar y descargar plantilla CSV ──
 function bodegaDescargarPlantilla() {
-  const cab  = 'codigo,nombre,marca,modelo,serie,categoria,estado,ubicacion,responsable,faena,fecha_ingreso,fecha_calibracion,fecha_vencimiento,observaciones,foto_url';
-  const ej1  = 'HERR-001,Llave de torque 3/4,Stanley,FMHT0-80177,SN-123456,Herramienta de mano,Disponible,Bodega,Juan Pérez,Andina,2026-01-15,2026-01-15,2027-01-15,Revisada en mantención,';
-  const ej2  = 'HERR-002,Multímetro digital,Fluke,117,FL-98765,Instrumento,Disponible,Bodega,,Chuquicamata,2025-06-01,2025-06-01,2026-06-01,,';
+  const cab  = 'codigo,nombre,marca,modelo,serie,categoria,estado,ubicacion,cantidad,responsable,faena,fecha_ingreso,fecha_calibracion,fecha_vencimiento,observaciones,foto_url';
+  const ej1  = 'HERR-001,Llave de torque 3/4,Stanley,FMHT0-80177,SN-123456,Herramienta de mano,Disponible,Bodega,1,Juan Pérez,Andina,2026-01-15,2026-01-15,2027-01-15,Revisada en mantención,';
+  const ej2  = 'HERR-002,Multímetro digital,Fluke,117,FL-98765,Instrumento,Disponible,Bodega,1,,Chuquicamata,2025-06-01,2025-06-01,2026-06-01,,';
   const blob = new Blob([cab + '\n' + ej1 + '\n' + ej2], { type: 'text/csv;charset=utf-8;' });
   const url  = URL.createObjectURL(blob);
   const a    = Object.assign(document.createElement('a'), { href: url, download: 'plantilla_herramientas.csv' });
@@ -448,7 +510,7 @@ function bodegaPreviewCSV(event) {
     const conCodigo  = objs.filter(o => (o.codigo || '').trim()).length;
     const sinCodigo  = objs.length - conCodigo;
     const muestraMax = Math.min(objs.length, 25);
-    const COLS_PREV  = ['codigo', 'nombre', 'marca', 'estado', 'ubicacion', 'faena', 'fecha_vencimiento'];
+    const COLS_PREV  = ['codigo', 'nombre', 'marca', 'cantidad', 'estado', 'ubicacion', 'faena', 'fecha_vencimiento'];
 
     prev.innerHTML = `
       <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px 14px;margin-bottom:10px;font-size:13px">
@@ -514,6 +576,7 @@ async function bodegaImportar() {
 
   // Normalizar cada fila
   const herramientas = validos.map(o => {
+    const cantidad = parseInt(o.cantidad) || 1;
     const h = {
       codigo:        (o.codigo        || '').trim(),
       nombre:        (o.nombre        || '').trim(),
@@ -523,6 +586,8 @@ async function bodegaImportar() {
       categoria:     (o.categoria     || '').trim(),
       estado:        ESTADOS_VALIDOS.find(e => e.toLowerCase() === (o.estado||'').toLowerCase().trim()) || 'Disponible',
       ubicacion:     UBICACIONES_VALIDAS.find(u => u.toLowerCase() === (o.ubicacion||'').toLowerCase().trim()) || 'Bodega',
+      cantidad_total:      cantidad,
+      cantidad_disponible: cantidad,
       responsable:   (o.responsable   || '').trim(),
       faena:         (o.faena         || '').trim(),
       observaciones: (o.observaciones || '').trim(),

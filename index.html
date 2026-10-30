@@ -1298,6 +1298,10 @@
       <div class="modulo" onclick="irDevolver()">↩️<br><b>Devolver herramienta</b></div>
       <div class="modulo" onclick="irReporte()">📊<br><b>Reporte</b></div>
       <div class="modulo" onclick="irImportar()">📥<br><b>Importar CSV</b></div>
+      <div class="modulo" onclick="irBodegaVale('entrega')">🧰<br><b>Vale de entrega (varios ítems)</b></div>
+      <div class="modulo" onclick="irBodegaVale('devolucion')">📦<br><b>Vale de devolución (varios ítems)</b></div>
+      <div class="modulo" onclick="irBodegaValesPendientes()">📥<br><b>Vales pendientes de retiro</b></div>
+      <div class="modulo" onclick="irEquiposBodega()">🏭<br><b>Equipos</b></div>
     </div>
   </div>
 </section>
@@ -1316,6 +1320,9 @@
 
     <label>Nombre de herramienta *</label>
     <input type="text" id="bod_nombre" placeholder="Ej: Llave torque 3/4">
+
+    <label>Cantidad</label>
+    <input type="number" id="bod_cantidad" value="1" min="1">
 
     <label>Marca</label>
     <input type="text" id="bod_marca" placeholder="Ej: Stanley">
@@ -1407,9 +1414,13 @@
     <h3 style="color:#0b3158;margin-bottom:16px">Registrar entrega</h3>
 
     <label>Herramienta</label>
-    <select id="bod_entCodigo">
+    <select id="bod_entCodigo" onchange="_bodegaMostrarDisponible('bod_entCodigo','bod_entDisponible')">
       <option value="">— Seleccione herramienta —</option>
     </select>
+    <small id="bod_entDisponible" style="color:#6b7280"></small>
+
+    <label>Cantidad a entregar</label>
+    <input type="number" id="bod_entCantidad" value="1" min="1">
 
     <label>Técnico responsable *</label>
     <input type="text" id="bod_entTecnico" placeholder="Nombre completo">
@@ -1446,9 +1457,13 @@
     <h3 style="color:#0b3158;margin-bottom:16px">Registrar devolución</h3>
 
     <label>Herramienta</label>
-    <select id="bod_devCodigo">
+    <select id="bod_devCodigo" onchange="_bodegaMostrarDisponible('bod_devCodigo','bod_devDisponible')">
       <option value="">— Seleccione herramienta —</option>
     </select>
+    <small id="bod_devDisponible" style="color:#6b7280"></small>
+
+    <label>Cantidad a devolver</label>
+    <input type="number" id="bod_devCantidad" value="1" min="1">
 
     <label>Estado al devolver</label>
     <select id="bod_devEstado">
@@ -1466,6 +1481,107 @@
     <br>
     <button class="btn-verde" onclick="bodegaDevolver()">✅ Confirmar devolución</button>
     <button class="btn-gris" onclick="mostrar('bodega')">✖ Cancelar</button>
+  </div>
+</section>
+
+<!-- BODEGA: VALE DE ENTREGA / DEVOLUCIÓN MÚLTIPLE -->
+<section id="bodega-vale" class="pantalla">
+  <div class="topbar">
+    <span onclick="mostrar('bodega')" style="cursor:pointer">← Volver</span>
+    &nbsp;<span id="val_tituloTopbar">📦 Nueva Entrega (Vale)</span>
+  </div>
+
+  <div id="val_bannerResultado" style="display:none;background:#e8f9ec;border:1px solid #b7e7c6;color:#1b8a4c;padding:12px 16px;border-radius:6px;margin:12px 16px 0"></div>
+
+  <div class="card">
+    <h3 id="val_tituloCard" style="color:#0b3158;margin-bottom:16px">1. Datos de la entrega</h3>
+
+    <label>Técnico responsable *</label>
+    <input type="text" id="val_tecnico" placeholder="Nombre completo">
+
+    <label>Protocolo / Mantención relacionado (opcional)</label>
+    <select id="val_protocolo">
+      <option value="">— Sin vincular a un protocolo —</option>
+    </select>
+
+    <label>Ubicación destino</label>
+    <select id="val_ubicacion">
+      <option value="">— Sin especificar —</option>
+    </select>
+
+    <label>Fecha</label>
+    <input type="date" id="val_fecha">
+
+    <label>Observaciones</label>
+    <textarea id="val_obs" rows="2" placeholder="Observaciones..."></textarea>
+  </div>
+
+  <div class="card">
+    <h3 style="color:#0b3158;margin-bottom:16px">2. Agregar ítems al vale</h3>
+
+    <label>Tipo</label>
+    <select id="val_tipoItem" onchange="_valeOnTipoChange()">
+      <option value="herramienta">🔧 Herramienta</option>
+      <option value="equipo">📟 Equipo</option>
+    </select>
+
+    <label>Ítem</label>
+    <select id="val_item" onchange="_valeOnItemChange()"></select>
+    <div id="val_dispText" style="font-size:12px;color:#6b7280;margin:4px 0 8px"></div>
+
+    <label>Cantidad</label>
+    <input type="number" id="val_cantidad" min="1" value="1" style="width:100px">
+
+    <div id="val_estadoDevueltoWrap" style="display:none;margin-top:10px">
+      <label>Estado al devolver</label>
+      <select id="val_estadoDevuelto">
+        <option value="Disponible">Disponible</option>
+        <option value="Dañada">Dañada</option>
+        <option value="En reparación">En reparación</option>
+      </select>
+    </div>
+
+    <br>
+    <button class="btn-gris" onclick="valeAgregarItem()">+ Agregar a la lista</button>
+  </div>
+
+  <div class="card">
+    <h3 style="color:#0b3158;margin-bottom:16px">3. Ítems en este vale</h3>
+    <table style="width:100%;border-collapse:collapse">
+      <thead>
+        <tr style="text-align:left;font-size:12px;color:#6b7280">
+          <th style="padding:6px">Tipo</th><th style="padding:6px">Ítem</th><th style="padding:6px">Cantidad</th><th></th>
+        </tr>
+      </thead>
+      <tbody id="val_tablaBody">
+        <tr><td colspan="4" style="text-align:center;color:#6b7280;padding:16px;font-style:italic">Aún no has agregado ítems</td></tr>
+      </tbody>
+    </table>
+    <div style="margin-top:10px;font-size:13px;color:#6b7280">
+      <b id="val_countTipos">0</b> ítems distintos · <b id="val_countUnidades">0</b> unidades en total
+    </div>
+  </div>
+
+  <div class="card">
+    <button class="btn-verde" id="val_btnConfirmar" onclick="valeConfirmar()">✅ Confirmar</button>
+    <button class="btn-gris" onclick="mostrar('bodega')">✖ Cancelar</button>
+  </div>
+</section>
+
+<!-- BODEGA: VALES PENDIENTES DE RETIRO -->
+<section id="bodega-vales-pendientes" class="pantalla">
+  <div class="topbar">
+    <span onclick="mostrar('bodega')" style="cursor:pointer">← Volver</span>
+    &nbsp;📥 Vales pendientes de retiro
+  </div>
+  <div class="card">
+    <p style="font-size:13px;color:#6b7280;margin:0 0 12px">
+      Generados automáticamente cuando un supervisor aprueba los recursos de un evento de mantención.
+      Al confirmar, se valida el stock/disponibilidad real en ese momento.
+    </p>
+    <div id="valPend_lista">
+      <p style="color:#6b7280;text-align:center;padding:20px">Cargando vales pendientes...</p>
+    </div>
   </div>
 </section>
 
@@ -1546,7 +1662,474 @@
   </div>
 </section>
 
+<!-- BODEGA: EQUIPOS (Fase 2) -->
+<section id="equiposBodega" class="pantalla">
+  <div class="topbar">
+    <span onclick="mostrar('bodega')" style="cursor:pointer">← Volver</span>
+    &nbsp;🏭 Equipos
+  </div>
+  <div class="card">
+    <h2 style="color:#0b3158;text-align:center;margin-bottom:20px">🏭 Equipos</h2>
+    <div class="grid">
+      <div class="modulo" onclick="irEquiposRegistrar()">➕<br><b>Registrar equipo</b></div>
+      <div class="modulo" onclick="irEquiposInventario()">📋<br><b>Inventario</b></div>
+      <div class="modulo" onclick="irEquiposReservar()">🔒<br><b>Reservar equipo</b></div>
+      <div class="modulo" onclick="irEquiposImportar()">📥<br><b>Importar CSV</b></div>
+    </div>
+  </div>
+</section>
+
+<!-- EQUIPOS: REGISTRAR / EDITAR -->
+<section id="equiposBodega-registrar" class="pantalla">
+  <div class="topbar">
+    <span onclick="mostrar('equiposBodega')" style="cursor:pointer">← Volver</span>
+    &nbsp;<span id="eqb_formTitulo">➕ Registrar Equipo</span>
+  </div>
+  <div class="card">
+    <h3 style="color:#0b3158;margin-bottom:16px">Datos del equipo</h3>
+
+    <label>Código interno *</label>
+    <input type="text" id="eqb_codigo" placeholder="Ej: EQ-001">
+
+    <label>Nombre del equipo *</label>
+    <input type="text" id="eqb_nombre" placeholder="Ej: Motor eléctrico 500HP">
+
+    <label>Descripción</label>
+    <textarea id="eqb_descripcion" rows="2" placeholder="Descripción adicional..."></textarea>
+
+    <label>Modelo</label>
+    <input type="text" id="eqb_modelo" placeholder="Ej: WEG-500HP-4P">
+
+    <label>Número de serie</label>
+    <input type="text" id="eqb_serie" placeholder="S/N">
+
+    <label>Categoría *</label>
+    <select id="eqb_categoria">
+      <option value="">— Seleccione categoría —</option>
+    </select>
+
+    <label>Marca</label>
+    <select id="eqb_marca">
+      <option value="">— Sin marca —</option>
+    </select>
+
+    <label>Ubicación *</label>
+    <select id="eqb_ubicacion">
+      <option value="">— Seleccione ubicación —</option>
+    </select>
+
+    <label>Responsable</label>
+    <select id="eqb_responsable">
+      <option value="">— Sin responsable —</option>
+    </select>
+
+    <label>Criticidad</label>
+    <select id="eqb_criticidad">
+      <option value="alta">Alta</option>
+      <option value="media" selected>Media</option>
+      <option value="baja">Baja</option>
+    </select>
+
+    <label style="display:flex;align-items:center;gap:8px;margin-top:14px">
+      <input type="checkbox" id="eqb_requiereCalibracion" style="width:auto">
+      Requiere calibración
+    </label>
+
+    <label>Fecha última calibración</label>
+    <input type="date" id="eqb_fechaUltimaCalibracion">
+
+    <label>Fecha vencimiento calibración</label>
+    <input type="date" id="eqb_fechaVencimientoCalibracion">
+
+    <label>N° de certificado</label>
+    <input type="text" id="eqb_numeroCertificado" placeholder="Ej: CERT-2026-0456">
+
+    <label>Laboratorio de calibración</label>
+    <input type="text" id="eqb_laboratorioCalibracion" placeholder="Nombre del laboratorio">
+
+    <label>Intervalo de calibración (meses)</label>
+    <input type="number" id="eqb_intervaloCalibracion" min="1" placeholder="Ej: 12">
+
+    <label>Foto principal (URL)</label>
+    <input type="text" id="eqb_fotoUrl" placeholder="https://...">
+    <p style="font-size:11px;color:#9ca3af;margin:2px 0 0">Por ahora se pega la URL de la foto; la subida directa de archivos llega en una fase posterior.</p>
+
+    <br>
+    <button class="btn-verde" onclick="eqbGuardar()">💾 Guardar equipo</button>
+    <button class="btn-gris" onclick="mostrar('equiposBodega')">✖ Cancelar</button>
+  </div>
+</section>
+
+<!-- EQUIPOS: INVENTARIO -->
+<section id="equiposBodega-inventario" class="pantalla">
+  <div class="topbar">
+    <span onclick="mostrar('equiposBodega')" style="cursor:pointer">← Volver</span>
+    &nbsp;📋 Inventario de Equipos
+  </div>
+  <div class="card">
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
+      <select id="eqb_filtroCategoria" onchange="eqbCargarInventario()" style="flex:1;min-width:140px">
+        <option value="">Todas las categorías</option>
+      </select>
+      <select id="eqb_filtroUbicacion" onchange="eqbCargarInventario()" style="flex:1;min-width:140px">
+        <option value="">Todas las ubicaciones</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
+      <select id="eqb_filtroEstadoLog" onchange="eqbCargarInventario()" style="flex:1;min-width:140px">
+        <option value="">Todos los estados logísticos</option>
+        <option value="disponible">Disponible</option>
+        <option value="asignado">Asignado</option>
+        <option value="reservado">Reservado</option>
+        <option value="extraviado">Extraviado</option>
+        <option value="baja">Baja</option>
+      </select>
+      <select id="eqb_filtroEstadoOp" onchange="eqbCargarInventario()" style="flex:1;min-width:140px">
+        <option value="">Todos los estados operacionales</option>
+        <option value="operativo">Operativo</option>
+        <option value="defectuoso">Defectuoso</option>
+        <option value="en_reparacion">En reparación</option>
+        <option value="obsoleto">Obsoleto</option>
+      </select>
+      <select id="eqb_filtroCriticidad" onchange="eqbCargarInventario()" style="flex:1;min-width:140px">
+        <option value="">Toda criticidad</option>
+        <option value="alta">Alta</option>
+        <option value="media">Media</option>
+        <option value="baja">Baja</option>
+      </select>
+      <button class="btn-gris" onclick="eqbCargarInventario()" style="flex:0">🔄 Actualizar</button>
+    </div>
+    <div id="eqb_listaInventario">
+      <p style="color:#6b7280;text-align:center;padding:20px">Cargando inventario...</p>
+    </div>
+  </div>
+</section>
+
+<!-- EQUIPOS: RESERVAR -->
+<section id="equiposBodega-reservar" class="pantalla">
+  <div class="topbar">
+    <span onclick="mostrar('equiposBodega')" style="cursor:pointer">← Volver</span>
+    &nbsp;🔒 Reservar Equipo
+  </div>
+  <div class="card">
+    <h3 style="color:#0b3158;margin-bottom:16px">Nueva reserva</h3>
+
+    <label>Equipo *</label>
+    <select id="eqb_resCodigo">
+      <option value="">— Seleccione equipo —</option>
+    </select>
+
+    <label>Reservado para *</label>
+    <input type="text" id="eqb_resPara" placeholder="Nombre, evento o mantención">
+
+    <label>Fecha de inicio *</label>
+    <input type="date" id="eqb_resFechaInicio">
+
+    <label>Fecha de fin (opcional)</label>
+    <input type="date" id="eqb_resFechaFin">
+
+    <br>
+    <button class="btn-verde" onclick="eqbReservar()">✅ Confirmar reserva</button>
+    <button class="btn-gris" onclick="mostrar('equiposBodega')">✖ Cancelar</button>
+  </div>
+</section>
+<!-- EQUIPOS: IMPORTAR CSV -->
+<section id="equiposBodega-importar" class="pantalla">
+  <div class="topbar">
+    <span onclick="mostrar('equiposBodega')" style="cursor:pointer">← Volver</span>
+    &nbsp;📥 Importar Equipos
+  </div>
+  <div class="card">
+    <h3 style="color:#0b3158;margin-bottom:4px">Importar desde Excel / CSV</h3>
+    <p style="font-size:13px;color:#6b7280;margin:0 0 16px">
+      Carga masiva de equipos. Si el código ya existe se actualiza; si no existe, se crea.
+      La categoría y la ubicación deben existir ya en el catálogo; si la marca no existe, se crea automáticamente.
+    </p>
+
+    <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:12px 14px;margin-bottom:16px">
+      <p style="font-size:13px;color:#1d4ed8;font-weight:bold;margin:0 0 4px">¿Primera vez? Descarga la plantilla</p>
+      <p style="font-size:12px;color:#555;margin:0 0 10px">Completa el archivo en Excel y guárdalo como <b>CSV UTF-8</b> antes de importar.</p>
+      <button onclick="eqbDescargarPlantilla()" style="background:#1d4ed8;font-size:13px;padding:9px 18px">📥 Descargar plantilla CSV</button>
+    </div>
+
+    <details style="margin-bottom:16px">
+      <summary style="font-size:13px;font-weight:bold;cursor:pointer;color:#0b3158;padding:4px 0">📋 Ver columnas esperadas</summary>
+      <div style="overflow-x:auto;margin-top:8px">
+        <table style="font-size:11px">
+          <tr style="background:#0b3158;color:white"><th style="padding:6px 8px">Columna</th><th>Obligatoria</th><th>Valores posibles</th></tr>
+          <tr><td style="padding:5px 8px;font-weight:bold">codigo</td><td style="text-align:center">✅</td><td>Texto único · ej: EQ-001</td></tr>
+          <tr style="background:#f8fafc"><td style="padding:5px 8px;font-weight:bold">nombre</td><td style="text-align:center">✅</td><td>Texto libre</td></tr>
+          <tr><td style="padding:5px 8px">descripcion</td><td style="text-align:center">—</td><td>Texto libre</td></tr>
+          <tr style="background:#f8fafc"><td style="padding:5px 8px">modelo</td><td style="text-align:center">—</td><td>Texto libre</td></tr>
+          <tr><td style="padding:5px 8px">serie</td><td style="text-align:center">—</td><td>Número de serie</td></tr>
+          <tr style="background:#f8fafc"><td style="padding:5px 8px;font-weight:bold">categoria</td><td style="text-align:center">✅</td><td>Debe existir ya en el catálogo de Equipos</td></tr>
+          <tr><td style="padding:5px 8px">marca</td><td style="text-align:center">—</td><td>Si no existe, se crea automáticamente</td></tr>
+          <tr style="background:#f8fafc"><td style="padding:5px 8px;font-weight:bold">ubicacion</td><td style="text-align:center">✅</td><td>Código o nombre; debe existir ya en el catálogo</td></tr>
+          <tr><td style="padding:5px 8px">responsable</td><td style="text-align:center">—</td><td>No usado todavía en la importación masiva</td></tr>
+          <tr style="background:#f8fafc"><td style="padding:5px 8px">criticidad</td><td style="text-align:center">—</td><td>alta · media (por defecto) · baja</td></tr>
+          <tr><td style="padding:5px 8px">requiere_calibracion</td><td style="text-align:center">—</td><td>si / no</td></tr>
+          <tr style="background:#f8fafc"><td style="padding:5px 8px">fecha_ultima_calibracion</td><td style="text-align:center">—</td><td>YYYY-MM-DD</td></tr>
+          <tr><td style="padding:5px 8px">fecha_vencimiento_calibracion</td><td style="text-align:center">—</td><td>YYYY-MM-DD</td></tr>
+          <tr style="background:#f8fafc"><td style="padding:5px 8px">numero_certificado</td><td style="text-align:center">—</td><td>Texto libre</td></tr>
+          <tr><td style="padding:5px 8px">laboratorio_calibracion</td><td style="text-align:center">—</td><td>Texto libre</td></tr>
+          <tr style="background:#f8fafc"><td style="padding:5px 8px">intervalo_calibracion_meses</td><td style="text-align:center">—</td><td>Número entero</td></tr>
+          <tr><td style="padding:5px 8px">foto_principal_url</td><td style="text-align:center">—</td><td>URL de imagen (opcional)</td></tr>
+        </table>
+      </div>
+    </details>
+
+    <label style="font-weight:bold;font-size:13px;color:#374151;display:block;margin-bottom:4px">Seleccionar archivo CSV</label>
+    <input type="file" id="eqb_impArchivo" accept=".csv,.txt" onchange="eqbPreviewCSV(event)">
+
+    <div id="eqb_impPreview" style="margin-top:12px"></div>
+
+    <br>
+    <button id="eqb_btnImportar" class="btn-verde" onclick="eqbImportarCSV()" disabled
+            style="width:100%;font-size:15px;padding:14px;opacity:0.5">
+      ☁️ Importar a Supabase
+    </button>
+    <button class="btn-gris" onclick="mostrar('equiposBodega')" style="width:100%;margin-top:8px">✖ Cancelar</button>
+
+    <div id="eqb_impResultado"></div>
+  </div>
+</section>
+<!-- ===================== FIN BODEGA: EQUIPOS ===================== -->
+
 <!-- ===================== FIN BODEGA ===================== -->
+
+<!-- EVENTOS DE MANTENCIÓN: LISTA -->
+<section id="eventosLista" class="pantalla">
+  <div class="topbar">
+    <span onclick="mostrar('panel')" style="cursor:pointer">← Volver</span>
+    &nbsp;📅 Mantenciones activas
+  </div>
+  <div class="card">
+    <h2>Eventos de mantención</h2>
+    <button class="btn-verde" onclick="eventosIrForm()" style="width:100%;margin-bottom:12px">+ Nuevo evento</button>
+    <div id="eventosListaCont">
+      <p style="color:#6b7280;text-align:center;padding:20px">Cargando eventos...</p>
+    </div>
+  </div>
+</section>
+
+<!-- EVENTOS DE MANTENCIÓN: CREAR -->
+<section id="eventoForm" class="pantalla">
+  <div class="topbar">
+    <span onclick="mostrar('eventosLista')" style="cursor:pointer">← Volver</span>
+    &nbsp;🆕 Nuevo evento de mantención
+  </div>
+  <div class="card">
+    <label>Cliente</label>
+    <select id="evtCliente" onchange="eventosCargarFaenasPorCliente()">
+      <option value="">Cargando...</option>
+    </select>
+
+    <label>Faena</label>
+    <select id="evtFaena" disabled>
+      <option value="">— Seleccione un cliente primero —</option>
+    </select>
+
+    <label>Tipo de evento</label>
+    <select id="evtTipoEvento">
+      <option value="">Cargando...</option>
+    </select>
+
+    <label>Nombre del evento *</label>
+    <input type="text" id="evtNombre" placeholder="Ej: Parada General Julio 2026 — SAG">
+
+    <label>Supervisor</label>
+    <div id="evtSupervisorCont">
+      <p style="color:#6b7280;font-size:13px">Cargando...</p>
+    </div>
+
+    <label>Fecha planificada de inicio</label>
+    <input type="date" id="evtFechaInicio">
+
+    <label>Fecha planificada de término</label>
+    <input type="date" id="evtFechaTermino">
+
+    <label>Observaciones</label>
+    <textarea id="evtObservaciones" rows="3" placeholder="Observaciones del evento..."></textarea>
+
+    <p id="evtFormError" style="color:#dc2626;font-size:13px;margin:8px 0 0;display:none"></p>
+
+    <br>
+    <button id="evtBtnGuardar" class="btn-verde" onclick="eventosCrear()">💾 Crear evento</button>
+    <button class="btn-gris" onclick="mostrar('eventosLista')">✖ Cancelar</button>
+  </div>
+</section>
+
+<!-- EVENTOS DE MANTENCIÓN: DETALLE -->
+<section id="eventoDetalle" class="pantalla">
+  <div class="topbar">
+    <span onclick="mostrar('eventosLista')" style="cursor:pointer">← Volver</span>
+    &nbsp;📅 Detalle del evento
+  </div>
+  <div class="card">
+    <div id="eventoDetalleCont">
+      <p style="color:#6b7280;text-align:center;padding:20px">Cargando detalle...</p>
+    </div>
+  </div>
+</section>
+
+<!-- EVENTOS DE MANTENCIÓN: AGREGAR EQUIPO -->
+<section id="eventoAgregarEquipo" class="pantalla">
+  <div class="topbar">
+    <span onclick="mostrar('eventoDetalle')" style="cursor:pointer">← Volver</span>
+    &nbsp;➕ Agregar equipo al evento
+  </div>
+  <div class="card">
+    <label>Área</label>
+    <select id="eqArea" onchange="eventosCargarEquiposPorArea()">
+      <option value="">Cargando...</option>
+    </select>
+
+    <label>Equipo</label>
+    <select id="eqEquipo" disabled>
+      <option value="">— Seleccione un área primero —</option>
+    </select>
+
+    <label>Tipo de mantención</label>
+    <select id="eqTipoMant" onchange="eventosCargarPlantillasPorTipo()">
+      <option value="">Cargando...</option>
+    </select>
+
+    <label>Plantilla</label>
+    <select id="eqPlantilla" disabled>
+      <option value="">— Seleccione un tipo de mantención primero —</option>
+    </select>
+
+    <label>Fecha planificada de inicio</label>
+    <input type="date" id="eqFechaInicio">
+
+    <label>Fecha planificada de término</label>
+    <input type="date" id="eqFechaTermino">
+
+    <label>Observaciones</label>
+    <textarea id="eqObservaciones" rows="3" placeholder="Observaciones del equipo/mantención..."></textarea>
+
+    <p id="eqFormError" style="color:#dc2626;font-size:13px;margin:8px 0 0;display:none"></p>
+
+    <br>
+    <button id="eqBtnGuardar" class="btn-verde" onclick="eventosAgregarEquipo()">💾 Agregar equipo</button>
+    <button class="btn-gris" onclick="mostrar('eventoDetalle')">✖ Cancelar</button>
+  </div>
+</section>
+
+<!-- ORDEN DE TRABAJO — pantalla núcleo de ejecución de una mantención.
+     Se reutilizará en fases futuras (checkboxes, observaciones, fotos,
+     firmas, impresión, cierre) — no crear otra pantalla distinta. -->
+<section id="ordenTrabajo" class="pantalla">
+  <div class="topbar">
+    <span onclick="otVolverAlEvento()" style="cursor:pointer">← Volver al evento</span>
+    &nbsp;🧾 Orden de Trabajo
+  </div>
+  <div class="card">
+    <div id="otEncabezado">
+      <p style="color:#6b7280;text-align:center;padding:20px">Cargando orden de trabajo...</p>
+    </div>
+    <button id="otBtnPdf" class="btn-gris" onclick="otGenerarAnexoA1Pdf()" style="width:100%;margin-top:10px">📄 Generar Anexo A1 PDF</button>
+  </div>
+  <div class="card">
+    <h3 style="margin:0 0 10px">Progreso</h3>
+    <div id="otResumen">
+      <p style="color:#6b7280;text-align:center;padding:10px">Cargando progreso...</p>
+    </div>
+  </div>
+  <div class="card">
+    <h3 style="margin:0 0 10px">Actividades</h3>
+    <div id="otActividadesCont">
+      <p style="color:#6b7280;text-align:center;padding:20px">Cargando actividades...</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== FIN EVENTOS DE MANTENCIÓN ===================== -->
+
+<!-- ADMINISTRACIÓN DE USUARIOS: LISTA -->
+<section id="usuariosLista" class="pantalla">
+  <div class="topbar">
+    <span onclick="mostrar('panel')" style="cursor:pointer">← Volver</span>
+    &nbsp;👤 Administración de usuarios
+  </div>
+  <div class="card">
+    <h2>Administración de usuarios</h2>
+    <p style="color:#6b7280;font-size:13px;margin:0 0 16px">
+      Gestión de usuarios, roles y estado de acceso a AYCA Smart Maintenance.
+    </p>
+
+    <input id="usu_buscar" type="text" placeholder="Buscar por nombre..." onkeyup="_usuariosAplicarFiltros()">
+
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 12px">
+      <select id="usu_filtroRol" onchange="_usuariosAplicarFiltros()" style="flex:1;min-width:140px">
+        <option value="">Todos los roles</option>
+        <option value="tecnico">Técnico</option>
+        <option value="supervisor">Supervisor</option>
+        <option value="planificador">Planificador</option>
+        <option value="bodega">Bodega</option>
+        <option value="gerencia">Gerencia</option>
+        <option value="administrador">Administrador</option>
+      </select>
+      <select id="usu_filtroEstado" onchange="_usuariosAplicarFiltros()" style="flex:1;min-width:120px">
+        <option value="">Todos los estados</option>
+        <option value="activo">Activo</option>
+        <option value="inactivo">Inactivo</option>
+      </select>
+      <select id="usu_filtroDisponibilidad" onchange="_usuariosAplicarFiltros()" style="flex:1;min-width:150px">
+        <option value="">Toda disponibilidad</option>
+        <option value="disponible">Disponible</option>
+        <option value="no_disponible">No disponible</option>
+      </select>
+    </div>
+
+    <p id="usu_aviso" style="color:#92400e;font-size:12px;background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:8px 12px;margin:0 0 10px;display:none"></p>
+
+    <div id="usuariosListaCont">
+      <p style="color:#6b7280;text-align:center;padding:20px">Cargando usuarios...</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== FIN ADMINISTRACIÓN DE USUARIOS ===================== -->
+
+<!-- TÉCNICO: MIS MANTENCIONES ASIGNADAS -->
+<section id="tecnicoMisMantenciones" class="pantalla">
+  <div class="topbar">
+    <span onclick="mostrar('panel')" style="cursor:pointer">← Volver</span>
+    &nbsp;🗂️ Mis mantenciones asignadas
+  </div>
+  <div class="card">
+    <p style="font-size:13px;color:#6b7280;margin:0 0 12px">
+      Mantenciones donde quedaste asignado como personal. Se actualiza según
+      lo que confirme tu supervisor.
+    </p>
+    <div id="tecMisMant_lista">
+      <p style="color:#6b7280;text-align:center;padding:20px">Cargando tus mantenciones...</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== FIN TÉCNICO ===================== -->
+
+<!-- PLANIFICADOR: MANTENCIONES POR PLANIFICAR -->
+<section id="planificadorPorPlanificar" class="pantalla">
+  <div class="topbar">
+    <span onclick="mostrar('panel')" style="cursor:pointer">← Volver</span>
+    &nbsp;🗓️ Mantenciones por planificar
+  </div>
+  <div class="card">
+    <p style="font-size:13px;color:#6b7280;margin:0 0 12px">
+      Mantenciones a la espera de que se les defina fechas y recursos (hoja
+      de tiempo). Cualquier planificador puede verlas; el badge indica si ya
+      quedó asignada a alguien.
+    </p>
+    <div id="plaPorPlan_lista">
+      <p style="color:#6b7280;text-align:center;padding:20px">Cargando mantenciones por planificar...</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== FIN PLANIFICADOR ===================== -->
 
 </div>
 
@@ -1563,6 +2146,14 @@
 <script src="js/ventilador.js"></script>
 <script src="js/sync.js"></script>
 <script src="js/bodega.js"></script>
+<script src="js/bodegaEntregas.js"></script>
+<script src="js/equiposBodega.js"></script>
+<script src="js/eventos.js"></script>
+<script src="js/eventosRecursos.js"></script>
+<script src="js/ordenTrabajo.js"></script>
+<script src="js/usuarios.js"></script>
+<script src="js/tecnico.js"></script>
+<script src="js/planificador.js"></script>
 <script>
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js')

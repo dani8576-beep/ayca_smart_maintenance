@@ -119,6 +119,14 @@ function mostrar(id) {
     renderPanelInicio();
   }
 
+  if (id === "eventosLista" && typeof eventosCargarLista === "function") {
+    eventosCargarLista();
+  }
+
+  if (id === "usuariosLista" && typeof usuariosCargarLista === "function") {
+    usuariosCargarLista();
+  }
+
   if (id === "estator1" && typeof cargarEst1 === "function") {
     cargarEst1(typeof modoEst1 !== "undefined" ? modoEst1 : "pre");
   }

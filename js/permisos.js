@@ -28,14 +28,14 @@ const MENU_CONFIG = [
   // ── Accesos "en preparación" del panel de inicio por rol (Paso 1C) ──
   // Todos abren la misma pantalla reutilizable #provisional con texto propio.
   { id: 'sup_nuevaMantencion', icon: '🆕', label: 'Nueva mantención',        panelRol: 'supervisor',    provTitulo: 'Nueva mantención',        provDesc: 'Creación de mantenciones: módulo en preparación.',                     roles: ['supervisor'],    en: ['home'] },
-  { id: 'sup_mantActivas',     icon: '📈', label: 'Mantenciones activas',    panelRol: 'supervisor',    provTitulo: 'Mantenciones activas',     provDesc: 'Seguimiento de mantenciones en curso: módulo en preparación.',         roles: ['supervisor'],    en: ['home'] },
+  { id: 'sup_mantActivas',     icon: '📈', label: 'Mantenciones activas',    panelRol: 'supervisor',    pantalla: 'eventosLista', roles: ['supervisor'],    en: ['home'] },
   { id: 'sup_personal',        icon: '👷', label: 'Personal asignado',       panelRol: 'supervisor',    provTitulo: 'Personal asignado',        provDesc: 'Asignación de técnicos a la mantención: módulo en preparación.',       roles: ['supervisor'],    en: ['home'] },
   { id: 'sup_anexoA1',         icon: '📄', label: 'Actividades Anexo A1',    panelRol: 'supervisor',    provTitulo: 'Actividades del Anexo A1', provDesc: 'Selección y aprobación de actividades del Anexo A1: módulo en preparación.', roles: ['supervisor'], en: ['home'] },
   { id: 'sup_hallazgos',       icon: '⚠️', label: 'Hallazgos',               panelRol: 'supervisor',    provTitulo: 'Hallazgos',                provDesc: 'Registro y revisión de hallazgos: módulo en preparación.',             roles: ['supervisor'],    en: ['home'] },
   { id: 'sup_conclusiones',    icon: '✅', label: 'Conclusiones',            panelRol: 'supervisor',    provTitulo: 'Conclusiones',             provDesc: 'Revisión y aprobación de conclusiones: módulo en preparación.',        roles: ['supervisor'],    en: ['home'] },
   { id: 'sup_informes',        icon: '📘', label: 'Informes',                panelRol: 'supervisor',    provTitulo: 'Informes',                 provDesc: 'Informe de entrega e informe final: módulo en preparación.',           roles: ['supervisor'],    en: ['home'] },
 
-  { id: 'pla_porPlanificar',   icon: '🗓️', label: 'Mantenciones por planificar', panelRol: 'planificador', provTitulo: 'Mantenciones por planificar', provDesc: 'Mantenciones a la espera de hoja de tiempo: módulo en preparación.', roles: ['planificador'], en: ['home'] },
+  { id: 'pla_porPlanificar',   icon: '🗓️', label: 'Mantenciones por planificar', panelRol: 'planificador', pantalla: 'planificadorPorPlanificar', roles: ['planificador'], en: ['home'] },
   { id: 'pla_hojaTiempo',      icon: '⏱️', label: 'Hoja de tiempo',          panelRol: 'planificador',  provTitulo: 'Hoja de tiempo',           provDesc: 'Definición de fechas y duración de actividades: módulo en preparación.', roles: ['planificador'], en: ['home'] },
   { id: 'pla_gantt',           icon: '📊', label: 'Carta Gantt',             panelRol: 'planificador',  provTitulo: 'Carta Gantt',              provDesc: 'Carta Gantt de la mantención: módulo en preparación.',                 roles: ['planificador'], en: ['home'] },
   { id: 'pla_recursos',        icon: '🧰', label: 'Recursos',                panelRol: 'planificador',  provTitulo: 'Recursos',                 provDesc: 'Asignación de tiempos y recursos: módulo en preparación.',             roles: ['planificador'], en: ['home'] },
@@ -49,7 +49,8 @@ const MENU_CONFIG = [
   { id: 'ger_informes',        icon: '📘', label: 'Informes',                panelRol: 'gerencia',      provTitulo: 'Informes',                 provDesc: 'Sin datos disponibles. Módulo en preparación.', roles: ['gerencia'], en: ['home'] },
   { id: 'ger_historialEquipos',icon: '🗄️', label: 'Historial de equipos',    panelRol: 'gerencia',      provTitulo: 'Historial de equipos',     provDesc: 'Sin datos disponibles. Módulo en preparación.', roles: ['gerencia'], en: ['home'] },
 
-  { id: 'adm_usuarios',        icon: '👤', label: 'Usuarios',                panelRol: 'administrador', provTitulo: 'Usuarios',                 provDesc: 'Administración de usuarios: módulo en preparación.',    roles: ['administrador'], en: ['home'] },
+  { id: 'adm_mantActivas',     icon: '📈', label: 'Mantenciones activas',    panelRol: 'administrador', pantalla: 'eventosLista', roles: ['administrador'], en: ['home'] },
+  { id: 'adm_usuarios',        icon: '👤', label: 'Usuarios',                panelRol: 'administrador', pantalla: 'usuariosLista', roles: ['administrador'], en: ['home'] },
   { id: 'adm_roles',           icon: '🛡️', label: 'Roles',                   panelRol: 'administrador', provTitulo: 'Roles',                    provDesc: 'Administración de roles: módulo en preparación.',       roles: ['administrador'], en: ['home'] },
   { id: 'adm_configuracion',   icon: '⚙️', label: 'Configuración',           panelRol: 'administrador', provTitulo: 'Configuración',            provDesc: 'Parámetros de la aplicación: módulo en preparación.',   roles: ['administrador'], en: ['home'] },
   { id: 'adm_clientes',        icon: '🏢', label: 'Clientes',                panelRol: 'administrador', provTitulo: 'Clientes',                 provDesc: 'Catálogo de clientes: módulo en preparación.',           roles: ['administrador'], en: ['home'] },
@@ -97,14 +98,39 @@ const PANTALLA_ROLES = {
   'bodega-devolver':   ROLES_BODEGA,
   'bodega-reporte':    ROLES_BODEGA,
   'bodega-importar':   ROLES_BODEGA,
+  'bodega-vale':       ROLES_BODEGA,
+  'bodega-vales-pendientes': ROLES_BODEGA,
+
+  // Bodega — Equipos (Fase 2)
+  'equiposBodega':            ROLES_BODEGA,
+  'equiposBodega-registrar':  ROLES_BODEGA,
+  'equiposBodega-inventario': ROLES_BODEGA,
+  'equiposBodega-reservar':   ROLES_BODEGA,
+  'equiposBodega-importar':   ROLES_BODEGA,
 
   // Pantalla provisional compartida (Paso 1C) — sin datos sensibles, abierta a cualquier rol
-  provisional: ROLES_AYCA
+  provisional: ROLES_AYCA,
+
+  // Eventos de mantención (FASE 3.1)
+  eventosLista:        ['supervisor', 'administrador'],
+  eventoForm:          ['supervisor', 'administrador'],
+  eventoDetalle:       ['supervisor', 'administrador'],
+  eventoAgregarEquipo: ['supervisor', 'administrador'],
+  ordenTrabajo:        ['supervisor', 'administrador'],
+
+  // Administración de usuarios (FASE 3.2)
+  usuariosLista: ['administrador'],
+
+  // Técnico (Paso 1C+)
+  tecnicoMisMantenciones: ['tecnico', 'administrador'],
+
+  // Planificador (Paso 1C+)
+  planificadorPorPlanificar: ['planificador', 'administrador']
 };
 
 // ── Tarjetas de estado vacías del panel de inicio del Técnico (Paso 1C) ──
 const PANEL_ESTADO_TECNICO = [
-  { icon: '🗂️', titulo: 'Mis mantenciones asignadas', mensaje: 'No tienes mantenciones asignadas.' },
+  { icon: '🗂️', titulo: 'Mis mantenciones asignadas', mensaje: 'Cargando...', pantalla: 'tecnicoMisMantenciones' },
   { icon: '⏳', titulo: 'Protocolos pendientes',        mensaje: 'No tienes mantenciones asignadas.' },
   { icon: '🔧', titulo: 'Protocolos en proceso',        mensaje: 'No tienes mantenciones asignadas.' },
   { icon: '✅', titulo: 'Protocolos completados',       mensaje: 'No tienes mantenciones asignadas.' },
@@ -247,12 +273,18 @@ function renderPanelInicio() {
   if (roles.includes('tecnico')) {
     html += '<h3 style="margin:10px 0 6px">Mi panel — Técnico</h3>';
     html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">';
-    html += PANEL_ESTADO_TECNICO.map(c => `
-      <div class="card" style="text-align:center;padding:14px">
+    html += PANEL_ESTADO_TECNICO.map(c => {
+      const clickable = !!c.pantalla;
+      const mensajeHTML = clickable
+        ? `<span id="tec_resumenMisMantenciones">${c.mensaje}</span>`
+        : c.mensaje;
+      return `
+      <div class="card" style="text-align:center;padding:14px${clickable ? ';cursor:pointer' : ''}"${clickable ? ` onclick="tecnicoIrMisMantenciones()"` : ''}>
         <div style="font-size:22px">${c.icon}</div>
         <div style="font-size:12px;color:#6b7280;margin:4px 0">${c.titulo}</div>
-        <div style="font-size:12px;color:#9ca3af">${c.mensaje}</div>
-      </div>`).join('');
+        <div style="font-size:12px;color:#9ca3af">${mensajeHTML}</div>
+      </div>`;
+    }).join('');
     html += '</div>';
   }
 
@@ -263,7 +295,9 @@ function renderPanelInicio() {
     html += `<h3 style="margin:10px 0 6px">Mi panel — ${_etiquetaRol(rol)}</h3>`;
     html += '<div class="grid" style="margin-bottom:14px">';
     html += items.map(i =>
-      `<div class="modulo" onclick="abrirProvisional('${_escJs(i.provTitulo)}','${_escJs(i.provDesc)}','${_escJs(_etiquetaRol(rol))}')">${i.icon}<br><b>${i.label}</b></div>`
+      `<div class="modulo" onclick="${i.pantalla
+        ? `mostrar('${i.pantalla}')`
+        : `abrirProvisional('${_escJs(i.provTitulo)}','${_escJs(i.provDesc)}','${_escJs(_etiquetaRol(rol))}')`}">${i.icon}<br><b>${i.label}</b></div>`
     ).join('');
     html += '</div>';
   });
@@ -277,5 +311,9 @@ function renderPanelInicio() {
 
   if (roles.includes('bodega') && typeof renderResumenBodega === 'function') {
     renderResumenBodega();
+  }
+
+  if (roles.includes('tecnico') && typeof tecnicoRenderResumenPanel === 'function') {
+    tecnicoRenderResumenPanel();
   }
 }

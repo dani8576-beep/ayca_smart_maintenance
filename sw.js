@@ -1,4 +1,4 @@
-const CACHE = 'ayca-v9';  // ← incrementar al desplegar cambios
+const CACHE = 'ayca-v22';  // ← incrementar al desplegar cambios
 
 const LOCAL = [
   'index.html',
@@ -14,7 +14,10 @@ const LOCAL = [
   'js/carbones.js',
   'js/ventilador.js',
   'js/sync.js',
-  'js/bodega.js'
+  'js/bodega.js',
+  'js/eventos.js',
+  'js/ordenTrabajo.js',
+  'js/usuarios.js'
 ];
 
 // Instalar: cachear archivos locales
