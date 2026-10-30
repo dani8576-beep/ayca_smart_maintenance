@@ -61,7 +61,8 @@ async function _subirItem({ tipo, numProtocolo }) {
     faena:      data.faena      || data.equipo || data.ventiladorNum || '',
     area:       data.area || _label(tipo),
     tecnico:    data.tecnico    || '',
-    posiciones: JSON.stringify(data)
+    // CD: solo las posiciones, mismo formato que guarda pdf.js y que lee _abrirCDNube
+    posiciones: JSON.stringify(tipo === 'cd' ? (data.posiciones || {}) : data)
   };
 
   const { error } = await supabaseAYCA
@@ -73,7 +74,7 @@ async function _subirItem({ tipo, numProtocolo }) {
 }
 
 function _label(tipo) {
-  return { carbones: 'Carbones', ventilador: 'Ventilador' }[tipo] || tipo;
+  return { carbones: 'Carbones', ventilador: 'Ventilador', cd: 'Control Dimensional' }[tipo] || tipo;
 }
 
 // ---- Indicador visual ----

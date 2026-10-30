@@ -266,6 +266,12 @@ function guardarAvance() {
   localStorage.setItem('cdAYCA_lista', JSON.stringify(lista));
   localStorage.setItem(`cd_${num}`, JSON.stringify(dataToSave));
 
+  // Subir a la nube (o dejar en cola si no hay conexión) — igual que carbones/ventilador
+  if (typeof encolarSync === 'function') {
+    encolarSync('cd', num);
+    if (typeof sincronizarTodo === 'function') sincronizarTodo();
+  }
+
   // Guardar también en los slots genéricos para compatibilidad con DOMContentLoaded
   localStorage.setItem("datosPosicionesAYCA", JSON.stringify(datosPosiciones));
   localStorage.setItem("datosGeneralesAYCA", JSON.stringify({

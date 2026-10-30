@@ -1,4 +1,4 @@
-const CACHE = 'ayca-v22';  // ← incrementar al desplegar cambios
+const CACHE = 'ayca-v23';  // ← incrementar al desplegar cambios
 
 const LOCAL = [
   'index.html',
